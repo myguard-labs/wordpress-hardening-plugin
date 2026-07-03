@@ -36,7 +36,7 @@ env:
 jobs:
   nginx-libmodsecurity3:
     name: nginx + libmodsecurity3
-    runs-on: [self-hosted, builder02, lxc]
+    runs-on: [self-hosted, builder02, docker]
     steps:
       - uses: actions/checkout@v4
 
