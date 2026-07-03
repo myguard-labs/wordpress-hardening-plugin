@@ -4,7 +4,7 @@ on: [push, pull_request]        # yamllint disable-line rule:truthy
 jobs:
   validate-files:
     name: Validate Plugin Files
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, builder02, lxc]
     steps:
       - uses: actions/checkout@v3
 

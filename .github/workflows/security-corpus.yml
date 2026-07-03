@@ -27,7 +27,7 @@ env:
 jobs:
   security-corpus:
     name: "Corpus — ModSecurity v2"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, builder02, docker]
     steps:
       - uses: actions/checkout@v4
 

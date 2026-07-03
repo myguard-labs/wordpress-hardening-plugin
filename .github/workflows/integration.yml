@@ -5,7 +5,7 @@ name: Integration tests
 jobs:
   validate-gates:
     name: Validate Gate Variables
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, builder02, lxc]
     steps:
       - uses: actions/checkout@v3
 
