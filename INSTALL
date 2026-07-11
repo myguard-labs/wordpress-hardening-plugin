@@ -22,4 +22,12 @@ The files must be in one of:
 3. Referenced with an absolute path in the rules file:
      @pmFromFile /full/path/to/wordpress-hardening-files.data
 
+Optional login rate limiting (Apache/mod_security2 only)
+=========================================================
+
+plugins/wordpress-hardening-ratelimit.conf is NOT loaded by the standard CRS
+plugin loader. It requires persistent collections (load-fatal on Coraza,
+unreliable on libmodsecurity3) — include it explicitly on Apache only, after
+the plugin before-file. See README "IP-Based Rate Limiting".
+
 See [README](README.md) for complete installation documentation.
