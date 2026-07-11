@@ -10,7 +10,10 @@
 #
 # Security note: the only ${{ }} in a run: context is github.token; no
 # untrusted event input is interpolated anywhere.
-on: [push, pull_request]          # yamllint disable-line rule:truthy
+on:
+  push:
+    branches: [master]
+  pull_request:
 name: Apache/v2
 
 concurrency:

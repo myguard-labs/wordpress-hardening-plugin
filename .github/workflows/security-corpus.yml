@@ -12,7 +12,10 @@
 # engines, so a real bypass/over-block is caught here regardless.
 #
 # Security note: the only run:-context interpolation is github.token.
-on: [push, pull_request]          # yamllint disable-line rule:truthy
+on:
+  push:
+    branches: [master]
+  pull_request:
 name: Security Corpus
 
 concurrency:

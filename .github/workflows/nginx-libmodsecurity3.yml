@@ -23,7 +23,10 @@
 #      homepage must stay clean.
 #
 # Security note: the only run:-context interpolation is github.token.
-on: [push, pull_request]          # yamllint disable-line rule:truthy
+on:
+  push:
+    branches: [master]
+  pull_request:
 name: NGINX/v3
 
 concurrency:
