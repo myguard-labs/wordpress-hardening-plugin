@@ -13,6 +13,10 @@
 on: [pull_request]                # yamllint disable-line rule:truthy
 name: Coraza compatibility
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -22,9 +26,11 @@ jobs:
     runs-on: [self-hosted, builder02, lxc]
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: stable
           cache-dependency-path: tests/coraza/go.sum

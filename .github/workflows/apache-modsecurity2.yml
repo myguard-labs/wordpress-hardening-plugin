@@ -13,6 +13,10 @@
 on: [push, pull_request]          # yamllint disable-line rule:truthy
 name: Apache + ModSecurity v2
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -28,7 +32,9 @@ jobs:
     name: Apache + ModSecurity v2
     runs-on: [self-hosted, builder02, docker]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Prepare log dir
         run: |
@@ -51,7 +57,7 @@ jobs:
       - name: Start Apache CRS stack
         run: |
           docker compose -f tests/integration/docker-compose.yml up -d apache
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl -fsS -o /dev/null "http://127.0.0.1:8001/"; then
               echo "apache up"; exit 0
             fi

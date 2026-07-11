@@ -1,18 +1,27 @@
 ---
 on: [push, pull_request]        # yamllint disable-line rule:truthy
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   validate-files:
     name: Validate Plugin Files
     runs-on: [self-hosted, builder02, lxc]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Check @pmFromFile references
         run: |
           # Validate that all @pmFromFile references point to existing .data files
-          grep -r "@pmFromFile" plugins/*.conf | while read line; do
-            file=$(echo $line | sed -n 's/.*@pmFromFile \([^ ]*\).*/\1/p')
+          grep -r "@pmFromFile" plugins/*.conf | while read -r line; do
+            file=$(echo "$line" | sed -n 's/.*@pmFromFile "\?\([^ "]*\).*/\1/p')
             if [ -n "$file" ]; then
               if [ ! -f "plugins/$file" ]; then
                 echo "ERROR: Referenced file not found: $file"
@@ -25,8 +34,8 @@ jobs:
       - name: Check Rule ID ranges
         run: |
           # Validate that all rules are in the allocated range 9522000-9522999
-          grep -o 'id:[0-9]*' plugins/*.conf | cut -d: -f2 | while read id; do
-            if [ $id -lt 9522000 ] || [ $id -gt 9522999 ]; then
+          grep -o 'id:[0-9]*' plugins/*.conf | cut -d: -f2 | while read -r id; do
+            if [ "$id" -lt 9522000 ] || [ "$id" -gt 9522999 ]; then
               echo "ERROR: Rule ID $id outside allocated range (9522000-9522999)"
               exit 1
             fi
@@ -47,7 +56,7 @@ jobs:
         run: |
           # Check that test files reference valid rule IDs
           for testfile in tests/regression/wordpress-hardening-plugin/*.yaml; do
-            ruleid=$(basename $testfile .yaml)
+            ruleid=$(basename "$testfile" .yaml)
             # Verify this rule ID exists in config files
             if ! grep -q "id:$ruleid" plugins/*.conf; then
               echo "ERROR: Test file $testfile references non-existent rule ID $ruleid"
@@ -58,4 +67,5 @@ jobs:
 
   plugin-lint:
     needs: validate-files
-    uses: coreruleset/crs-plugin-test-action/.github/workflows/lint.yaml@main
+    # Official OWASP CRS plugin lint (pinned SHA for v3.0.0).
+    uses: coreruleset/crs-plugin-test-action/.github/workflows/lint.yaml@7e1ee6d07105ae3cb6eec95e45acb5e1a895e3d4

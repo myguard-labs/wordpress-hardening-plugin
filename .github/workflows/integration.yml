@@ -2,12 +2,21 @@
 on: [push, pull_request]          # yamllint disable-line rule:truthy
 name: Integration tests
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   validate-gates:
     name: Validate Gate Variables
     runs-on: [self-hosted, builder02, lxc]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Verify REST API gate coverage
         run: |
@@ -115,12 +124,12 @@ jobs:
           # and renamed markers.
           echo "Checking skipAfter targets resolve to a SecMarker..."
           MISSING=0
-          for label in $(grep -ohE 'skipAfter:[A-Za-z0-9_]+' plugins/*.conf | cut -d: -f2 | sort -u); do
+          while read -r label; do
             if ! grep -qE "SecMarker \"?${label}\"?" plugins/*.conf; then
               echo "ERROR: skipAfter:${label} has no matching SecMarker"
               MISSING=1
             fi
-          done
+          done < <(grep -ohE 'skipAfter:[A-Za-z0-9_]+' plugins/*.conf | cut -d: -f2 | sort -u)
           [ "$MISSING" -eq 0 ] && echo "✓ All skipAfter targets resolve"
           [ "$MISSING" -eq 0 ] || exit 1
 
@@ -153,18 +162,18 @@ jobs:
           # per-feature checks so new gates/skip-targets are covered too.
           echo "Checking markers are well-formed and reachable..."
           BAD=0
-          for end in $(grep -ohE 'SecMarker "END_[A-Z0-9_]+"' plugins/*.conf | sed 's/SecMarker "//;s/"//'); do
+          while read -r end; do
             begin="BEGIN_${end#END_}"
             if ! grep -qE "SecMarker \"${begin}\"" plugins/*.conf; then
               # skip-only target is allowed, but must be jumped to
               grep -qE "skipAfter:${end}\b" plugins/*.conf || { echo "ERROR: ${end} has no BEGIN_ and no skipAfter targets it (dead marker)"; BAD=1; }
             fi
             grep -qE "skipAfter:${end}\b" plugins/*.conf || { echo "ERROR: ${end} is never targeted by a skipAfter (dead gate)"; BAD=1; }
-          done
-          for begin in $(grep -ohE 'SecMarker "BEGIN_[A-Z0-9_]+"' plugins/*.conf | sed 's/SecMarker "//;s/"//'); do
+          done < <(grep -ohE 'SecMarker "END_[A-Z0-9_]+"' plugins/*.conf | sed 's/SecMarker "//;s/"//')
+          while read -r begin; do
             end="END_${begin#BEGIN_}"
             grep -qE "SecMarker \"${end}\"" plugins/*.conf || { echo "ERROR: ${begin} has no matching ${end}"; BAD=1; }
-          done
+          done < <(grep -ohE 'SecMarker "BEGIN_[A-Z0-9_]+"' plugins/*.conf | sed 's/SecMarker "//;s/"//')
           [ "$BAD" -eq 0 ] && echo "✓ All markers well-formed and reachable"
           [ "$BAD" -eq 0 ] || exit 1
 
