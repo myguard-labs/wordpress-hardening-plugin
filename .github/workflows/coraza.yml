@@ -11,7 +11,7 @@
 #
 # Security note: no untrusted event input is interpolated anywhere.
 on: [pull_request]                # yamllint disable-line rule:truthy
-name: Coraza compatibility
+name: NGINX/Coraza
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

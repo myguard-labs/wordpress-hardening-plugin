@@ -11,7 +11,7 @@
 # Security note: the only ${{ }} in a run: context is github.token; no
 # untrusted event input is interpolated anywhere.
 on: [push, pull_request]          # yamllint disable-line rule:truthy
-name: Apache + ModSecurity v2
+name: Apache/v2
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
