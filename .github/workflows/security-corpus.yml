@@ -13,7 +13,7 @@
 #
 # Security note: the only run:-context interpolation is github.token.
 on: [push, pull_request]          # yamllint disable-line rule:truthy
-name: WAF security corpus
+name: Security Corpus
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

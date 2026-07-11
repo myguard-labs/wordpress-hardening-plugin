@@ -54,3 +54,19 @@ tests:
             log=admin%00evil&pwd=password
         output:
           log_contains: id "9522309"
+  - test_title: 9522309-4
+    desc: Test if double-encoded null byte (%2500) in query string is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+          port: 80
+          method: GET
+          uri: /wp-login.php?redirect_to=%2500evil.com
+          data: |
+            text
+        output:
+          log_contains: id "9522309"

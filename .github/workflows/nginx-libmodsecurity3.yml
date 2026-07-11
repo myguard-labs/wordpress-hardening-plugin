@@ -24,7 +24,7 @@
 #
 # Security note: the only run:-context interpolation is github.token.
 on: [push, pull_request]          # yamllint disable-line rule:truthy
-name: nginx + libmodsecurity3
+name: NGINX/v3
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

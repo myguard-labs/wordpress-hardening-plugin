@@ -1,6 +1,6 @@
 ---
 on: [push, pull_request]          # yamllint disable-line rule:truthy
-name: Integration tests
+name: Integration Tests
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
