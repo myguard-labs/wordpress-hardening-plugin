@@ -16,7 +16,7 @@ on:
   push:
     branches: [master]
   pull_request:
-name: Security Corpus
+name: WAF Corpus
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
