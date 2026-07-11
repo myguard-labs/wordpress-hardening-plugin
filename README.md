@@ -145,7 +145,7 @@ Include /path/to/plugins/wordpress-hardening-ratelimit.conf
 **Default settings:**
 - **Enabled by default** (`ratelimit_login_enabled`)
 - **5 login attempts** per IP (`ratelimit_login_attempts`)
-- **60 second window** (`ratelimit_login_window`)
+- **60 second window** (fixed — not configurable)
 - **Whitelisted IPs**: see [IP Whitelisting](#ip-whitelisting) above
 
 **Customization:**
@@ -153,21 +153,17 @@ Include /path/to/plugins/wordpress-hardening-ratelimit.conf
 Uncomment these in `plugins/wordpress-hardening-config.conf` to override defaults:
 
 ```bash
-# Reduce to 3 attempts (window remains 60s)
+# Reduce to 3 attempts (the window is always 60s — not configurable)
 #SecAction "id:9522049,phase:1,nolog,pass,t:none,setvar:tx.wphard.ratelimit_login_attempts=3"
-
-# Change the window (allowed values: 30, 60, 120, 300, 600 — any other value
-# silently falls back to 60s)
-#SecAction "id:9522050,phase:1,nolog,pass,t:none,setvar:tx.wphard.ratelimit_login_window=300"
 
 # Disable rate limiting entirely
 #SecAction "id:9522048,phase:1,nolog,pass,t:none,setvar:tx.wphard.ratelimit_login_enabled=0"
 ```
 
-> **Note on the window:** `expirevar` in ModSecurity does not accept macro
-> expansion in its TTL, so the plugin dispatches the configured window through
-> five literal `expirevar` rules (rule IDs `9522416`-`9522420`) covering 30, 60,
-> 120, 300, and 600 seconds. Any other value falls back to 60s.
+> **Note on the window:** the 60-second window is fixed and **not**
+> configurable — `expirevar` in ModSecurity does not accept macro expansion in
+> its TTL, so a tunable window variable would have no effect. Only the attempt
+> threshold (`ratelimit_login_attempts`) is adjustable.
 
 ### `Retry-After` response header (optional)
 
@@ -257,12 +253,12 @@ The plugin uses the allocated range **9522000-9522999**. Major buckets:
 | `9522012`-`9522050` | Default-value setters (in `before.conf`, IPv6/proxy series) |
 | `9522071`-`9522081` | Default-value setters (in `before.conf`, audit-round-4 protections) |
 | `9522060`-`9522065` | Client-IP resolver (`REMOTE_ADDR`, XFF v4/v6, trusted-proxy gate, `client_is_private`) |
-| `9522099` | Plugin kill-switch (removes 9522000-9522998) |
+| `9522099` | Plugin kill-switch (removes 9522000-9522999 except itself) |
 | `9522101`-`9522111` | xmlrpc / user-enumeration / REST API / admin-login / wp-cron blocks |
 | `9522150`-`9522155` | Per-group whitelist (uses `client_is_private`) |
 | `9522199`-`9522207` | Static-asset fast path, direct-PHP guard, files.data, uploads, sensitive files |
 | `9522300`-`9522320` | Editor / backup / DB / upload-traversal / null-byte / scanner / debug / login-injection / dangerous-admin |
-| `9522400`-`9522420` | Rate-limit gate, counter, window dispatcher, 429 block |
+| `9522400`-`9522414` | Rate-limit gate, whitelist, per-IP counter (fixed 60s expiry), 429 block |
 | `9522500`-`9522510` | GeoIP header extraction + login gate |
 | `9522600`-`9522604` | IP reputation gate, whitelist, block |
 
