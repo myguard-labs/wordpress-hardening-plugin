@@ -52,6 +52,11 @@ jobs:
           mkdir -p tests/integration/.plugins-staged
           cp plugins/* tests/integration/ci-plugin/* \
              tests/integration/.plugins-staged/
+          # Keep the opt-in rate-limit rules in the v3 parse/load gate: stage
+          # the file under a *-before.conf name so the CRS loader includes it
+          # (its real name is outside the globs because it is Coraza-fatal).
+          mv tests/integration/.plugins-staged/wordpress-hardening-ratelimit.conf \
+             tests/integration/.plugins-staged/wordpress-hardening-ratelimit-before.conf
 
       - name: Start nginx CRS stack (rule parse/load gate)
         run: |

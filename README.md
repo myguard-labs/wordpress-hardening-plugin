@@ -97,9 +97,18 @@ All features are **enabled by default** with sensible defaults. To override defa
 
 **Important note on `block_admin_login`**: This rule blocks login attempts that use the **literal username "admin"** — it does NOT block all administrator accounts. Only WordPress installations with a user named exactly "admin" will be affected.
 
-## IP-Based Rate Limiting
+## IP-Based Rate Limiting (opt-in, Apache/mod_security2 only)
 
-The plugin includes IP-based rate limiting for `wp-login.php` to prevent brute force attacks.
+The plugin ships IP-based rate limiting for `wp-login.php` to prevent brute
+force attacks — in the **separate, opt-in file
+`plugins/wordpress-hardening-ratelimit.conf`**. It is *not* loaded by the
+standard CRS plugin loader (which only picks up `*-config.conf`,
+`*-before.conf` and `*-after.conf`); to enable it, add an explicit
+`Include` for the file *after* the plugin before-file:
+
+```apache
+Include /path/to/plugins/wordpress-hardening-ratelimit.conf
+```
 
 **How it works:**
 - Tracks all POST requests to `/wp-login.php` per resolved client IP
@@ -109,13 +118,16 @@ The plugin includes IP-based rate limiting for `wp-login.php` to prevent brute f
 
 > **⚠️ Engine support:** rate limiting relies on persistent collections
 > (`initcol:ip=...` + `IP:` variables). This works reliably on **Apache +
-> mod_security2 (v2.x)**. **libmodsecurity3 (the engine used by nginx /
+> mod_security2 (v2.x)** only. **libmodsecurity3 (the engine used by nginx /
 > Angie)** has long-standing gaps in its persistent-collection
 > implementation — the counter often never persists across requests and
 > the rate-limit never triggers, even when the rule itself parses and
-> loads correctly. If you're on libmodsec3, prefer your webserver's
-> native rate-limiter (e.g. nginx/Angie's `limit_req zone=...`) for
-> `/wp-login.php` and treat this plugin's rate-limiter as Apache-only.
+> loads correctly. **Coraza v3 has no persistent collections at all** and
+> rejects these constructs at config load — which is why the rules live in
+> a separate file: loading `wordpress-hardening-ratelimit.conf` on Coraza
+> is a fatal error. On libmodsec3 or Coraza, prefer your webserver's
+> native rate-limiter (e.g. nginx/Angie's `limit_req zone=...`) or
+> fail2ban for `/wp-login.php`.
 
 > **⚠️ Collection growth (DoS):** `initcol:ip=%{client_ip}` creates one
 > SDBM entry per resolved IP under `SecDataDir`. The plugin does NOT set

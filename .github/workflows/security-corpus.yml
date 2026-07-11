@@ -43,6 +43,10 @@ jobs:
           mkdir -p tests/integration/.plugins-staged
           cp plugins/* tests/integration/ci-plugin/* \
              tests/integration/.plugins-staged/
+          # Load the opt-in rate-limit rules on this engine too (real name is
+          # outside the CRS loader globs because it is Coraza-fatal).
+          mv tests/integration/.plugins-staged/wordpress-hardening-ratelimit.conf \
+             tests/integration/.plugins-staged/wordpress-hardening-ratelimit-before.conf
 
       - name: Start Apache CRS stack
         run: |

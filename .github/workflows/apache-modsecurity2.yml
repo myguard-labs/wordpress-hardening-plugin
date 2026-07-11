@@ -42,6 +42,11 @@ jobs:
           mkdir -p tests/integration/.plugins-staged
           cp plugins/* tests/integration/ci-plugin/* \
              tests/integration/.plugins-staged/
+          # The opt-in rate-limit file is deliberately named outside the CRS
+          # plugin loader globs (Coraza-incompatible; see README). CI tests it
+          # on this engine, so stage it under a *-before.conf name to load it.
+          mv tests/integration/.plugins-staged/wordpress-hardening-ratelimit.conf \
+             tests/integration/.plugins-staged/wordpress-hardening-ratelimit-before.conf
 
       - name: Start Apache CRS stack
         run: |

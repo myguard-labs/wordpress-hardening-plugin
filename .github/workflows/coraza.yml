@@ -1,0 +1,57 @@
+---
+# Coraza v3 load gate. Coraza is the strictest of the three target engines:
+# it rejects the whole ruleset at config load where ModSecurity would warn
+# (PCRE-only regex constructs, persistent collections, unsupported actions).
+# This gate loads every glob-loaded plugin file into coraza.NewWAF() and
+# fails on any load error, keeping the plugin portable.
+#
+# wordpress-hardening-ratelimit.conf is deliberately NOT gated: it is the
+# opt-in Apache/mod_security2-only file (persistent IP collections are
+# Coraza-fatal by design — see README "IP-Based Rate Limiting").
+#
+# Security note: no untrusted event input is interpolated anywhere.
+on: [pull_request]                # yamllint disable-line rule:truthy
+name: Coraza compatibility
+
+permissions:
+  contents: read
+
+jobs:
+  coraza-gate:
+    name: Coraza v3 load gate
+    runs-on: [self-hosted, builder02, lxc]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache-dependency-path: tests/coraza/go.sum
+
+      - name: Build probe
+        working-directory: tests/coraza
+        run: go build -o "$RUNNER_TEMP/coraza-probe" .
+
+      - name: Gate plugin rulesets (load into coraza.NewWAF)
+        working-directory: plugins
+        run: |
+          "$RUNNER_TEMP/coraza-probe" \
+            wordpress-hardening-config.conf \
+            ../tests/integration/ci-plugin/zzz-ci-config.conf \
+            wordpress-hardening-before.conf \
+            wordpress-hardening-after.conf
+
+      - name: Guard — ratelimit file must stay outside the loader globs
+        run: |
+          # The Coraza-incompatible rate-limit rules live in an opt-in file
+          # whose name must never match the CRS plugin loader globs, or every
+          # Coraza deployment of this plugin breaks at config load.
+          bad=$(find plugins -name '*ratelimit*-config.conf' \
+                          -o -name '*ratelimit*-before.conf' \
+                          -o -name '*ratelimit*-after.conf')
+          if [ -n "$bad" ]; then
+            echo "ERROR: rate-limit rules in a glob-loaded filename: $bad"
+            exit 1
+          fi
+          echo "OK: ratelimit file stays opt-in"
