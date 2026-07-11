@@ -21,7 +21,7 @@ jobs:
         run: |
           # Validate that all @pmFromFile references point to existing .data files
           grep -r "@pmFromFile" plugins/*.conf | while read -r line; do
-            file=$(echo "$line" | sed -n 's/.*@pmFromFile \([^ ]*\).*/\1/p')
+            file=$(echo "$line" | sed -n 's/.*@pmFromFile "\?\([^ "]*\).*/\1/p')
             if [ -n "$file" ]; then
               if [ ! -f "plugins/$file" ]; then
                 echo "ERROR: Referenced file not found: $file"
