@@ -3,13 +3,19 @@ name: Release
 
 on:
   push:
-    # Actions tag filters are globs, not regexes: `*` matches any run of
-    # characters, and `+` would be a literal plus. Release tags are bare
-    # versions such as 1.2.0 and 1.0.0rc3 — no leading `v`.
+    # Actions tag filters are globs, not regexes: `*` matches zero or more
+    # characters; `+` matches one or more of the preceding character or class.
+    # Tags are bare versions such as 1.2.0 and 1.0.0rc3 — no leading `v`.
     tags: ["[0-9]*.[0-9]*.[0-9]*"]
 
 permissions:
   contents: read
+
+# A moved tag can start another run while this one is uploading. Serialize
+# publishers so an older run cannot clobber a newer run's completed assets.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   # Re-run the deterministic plugin gates against the exact tag commit. The
@@ -27,6 +33,9 @@ jobs:
           # verify/ validated.
           ref: ${{ github.sha }}
           persist-credentials: false
+
+      - name: Test release publication contract
+        run: python3 tests/ci/test_release_publication.py
 
       - name: Check @pmFromFile references
         run: |
@@ -150,10 +159,39 @@ jobs:
         run: |
           set -eu
           tag="${GITHUB_REF_NAME}"
+          release_flags=()
+          if [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+rc[0-9]+$ ]]; then
+            release_flags=(--prerelease --latest=false)
+          fi
+          release_exists=false
           if gh release view "$tag" >/dev/null 2>&1; then
+            release_exists=true
+          fi
+
+          verify_remote_tag() {
+            # Fail for a missing tag; prefer an annotated tag's peeled commit.
+            remote_tag=$(git ls-remote --exit-code origin \
+              "refs/tags/$tag" "refs/tags/$tag^{}")
+            remote_sha=$(printf '%s\n' "$remote_tag" |
+              awk -v ref="refs/tags/$tag" '
+              $2 == ref { sha = $1 }
+              $2 == ref "^{}" { peeled = $1 }
+              END { print peeled ? peeled : sha }')
+            if [ "$remote_sha" != "$GITHUB_SHA" ]; then
+              echo "ERROR: remote tag $tag does not point to $GITHUB_SHA"
+              exit 1
+            fi
+          }
+
+          # Checkout and archives are pinned; verify the remote at publication.
+          verify_remote_tag
+          if [ "$release_exists" = true ]; then
             gh release upload "$tag" dist/* --clobber
           else
             gh release create "$tag" dist/* \
+              --verify-tag "${release_flags[@]}" \
               --title "$tag" \
               --generate-notes
           fi
+          # Detect changes during the API calls before a queued run can publish.
+          verify_remote_tag
