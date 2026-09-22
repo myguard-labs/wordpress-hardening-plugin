@@ -1,0 +1,159 @@
+---
+name: Release
+
+on:
+  push:
+    # Actions tag filters are globs, not regexes: `*` matches any run of
+    # characters, and `+` would be a literal plus. Release tags are bare
+    # versions such as 1.2.0 and 1.0.0rc3 — no leading `v`.
+    tags: ["[0-9]*.[0-9]*.[0-9]*"]
+
+permissions:
+  contents: read
+
+jobs:
+  # Re-run the deterministic plugin gates against the exact tag commit. The
+  # other workflows run on branch pushes and PRs only, so without this a tag
+  # pushed at an unverified commit could publish an asset nothing checked.
+  verify:
+    name: Verify tag commit
+    runs-on: [self-hosted, builder02, lxc]
+    steps:
+      # actions/checkout v4.2.2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          # Pin to the immutable SHA for this run, not the tag name: a tag can
+          # be moved between jobs, and package/ must archive exactly what
+          # verify/ validated.
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Check @pmFromFile references
+        run: |
+          grep -r "@pmFromFile" plugins/*.conf | while read -r line; do
+            file=$(echo "$line" | sed -n 's/.*@pmFromFile "\?\([^ "]*\).*/\1/p')
+            if [ -n "$file" ]; then
+              if [ ! -f "plugins/$file" ]; then
+                echo "ERROR: Referenced file not found: $file"
+                exit 1
+              fi
+            fi
+          done
+          echo "✓ All @pmFromFile references valid"
+
+      - name: Check plugin version matches tag
+        run: |
+          set -eu
+          tag="${GITHUB_REF_NAME}"
+          # Every rule file carries ver:'wordpress-hardening-plugin/<version>'.
+          versions=$(grep -ho "ver:'wordpress-hardening-plugin/[^']*'" \
+            plugins/*.conf | sed "s|.*/||; s|'$||" | sort -u)
+          if [ -z "$versions" ]; then
+            echo "ERROR: no wordpress-hardening-plugin ver: found in plugins/"
+            exit 1
+          fi
+          if [ "$versions" != "$tag" ]; then
+            echo "ERROR: tag is $tag but plugins declare:"
+            echo "$versions"
+            exit 1
+          fi
+          # Installers read these headers out of *-config.conf rather than
+          # ver:; keep every shipped conf consistent with the tag.
+          for f in plugins/*.conf; do
+            grep -q '^# Plugin name: wordpress-hardening-plugin$' "$f" || {
+              echo "ERROR: $f is missing the '# Plugin name:' header"
+              exit 1
+            }
+            grep -q "^# Plugin version: ${tag}\$" "$f" || {
+              echo "ERROR: $f is missing '# Plugin version: ${tag}'"
+              exit 1
+            }
+          done
+          echo "✓ Plugin version matches tag $tag"
+
+  package:
+    name: Publish plugin-only archives
+    needs: verify
+    runs-on: [self-hosted, builder02, lxc]
+    permissions:
+      contents: write
+    steps:
+      # actions/checkout v4.2.2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # `git archive` honours the export-ignore attributes committed on the tag
+      # being archived, so the CI-only stubs under tests/ stay out. CRS plugin
+      # installers search recursively for *-config.conf and abort on a match
+      # without plugin name/version headers.
+      - name: Build plugin-only archives
+        run: |
+          set -eu
+          tag="${GITHUB_REF_NAME}"
+          prefix="wordpress-hardening-plugin-${tag}/"
+          mkdir -p dist
+          git archive --format=tar.gz --prefix="$prefix" -o \
+            "dist/wordpress-hardening-plugin-${tag}.tar.gz" HEAD
+          git archive --format=zip --prefix="$prefix" -o \
+            "dist/wordpress-hardening-plugin-${tag}.zip" HEAD
+
+      - name: Verify archives carry no unnamed CRS plugin conf
+        run: |
+          set -eu
+          tag="${GITHUB_REF_NAME}"
+          tmp=$(mktemp -d)
+          tar -xzf "dist/wordpress-hardening-plugin-${tag}.tar.gz" -C "$tmp"
+          root="$tmp/wordpress-hardening-plugin-${tag}"
+
+          # A *-config.conf anywhere outside plugins/ is the exact shape that
+          # aborted the BunkerWeb install in issue #42; any other stray .conf
+          # has no business in a plugin archive either.
+          stray=$(find "$root" -name '*.conf' -not -path "$root/plugins/*")
+          if [ -n "$stray" ]; then
+            echo "ERROR: non-plugin .conf files present in archive:"
+            echo "$stray"
+            exit 1
+          fi
+
+          # Every shipped .conf must carry the CRS plugin header metadata that
+          # installers parse out of *-config.conf.
+          for f in "$root"/plugins/*.conf; do
+            grep -q '^# Plugin name: wordpress-hardening-plugin$' "$f" || {
+              echo "ERROR: $f is missing the '# Plugin name:' header"
+              exit 1
+            }
+            grep -q "^# Plugin version: ${tag}\$" "$f" || {
+              echo "ERROR: $f is missing '# Plugin version: ${tag}'"
+              exit 1
+            }
+          done
+
+          # The .data files the rules load must all be present.
+          for d in "$root"/plugins/*.data; do
+            [ -s "$d" ] || { echo "ERROR: empty data file $d"; exit 1; }
+          done
+
+          rm -rf "$tmp"
+          echo "✓ Archive contains plugins/ only, all conf files versioned"
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum ./*.tar.gz ./*.zip > SHA256SUMS
+
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          tag="${GITHUB_REF_NAME}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/* --clobber
+          else
+            gh release create "$tag" dist/* \
+              --title "$tag" \
+              --generate-notes
+          fi

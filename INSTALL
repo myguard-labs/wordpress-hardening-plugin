@@ -2,6 +2,28 @@ Installation
 
 For official CRS plugin installation instructions, see https://coreruleset.org/docs/concepts/plugins/#how-to-install-a-plugin.
 
+Which archive to download
+=========================
+
+Releases after 1.2.0 ship plugin-only archives that contain the plugins/
+directory and documentation, and nothing else:
+
+  wordpress-hardening-plugin-<version>.tar.gz
+  wordpress-hardening-plugin-<version>.zip
+  SHA256SUMS
+
+Use these with automated CRS plugin installers (CRS itself, BunkerWeb, ...).
+Such installers search the extracted tree recursively for *-config.conf and
+reject any match that does not declare a plugin name and version, so the CI
+test harness must not be present.
+
+For those same releases the GitHub-generated "Source code" archives are
+equivalent, because the test and CI trees are marked export-ignore. That
+attribute is read from the commit being archived, so it does not apply
+retroactively: the "Source code" archives of 1.2.0 and earlier still contain
+tests/ and fail those installers. On 1.2.0 or earlier, either download a
+later release or delete the tests/ directory after extracting.
+
 File Path Configuration
 =====================
 
