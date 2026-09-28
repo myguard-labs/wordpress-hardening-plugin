@@ -105,6 +105,39 @@ tests:
         output:
           log_contains: id "9522100"
   - test_title: 9522100-10
+    desc: Percent-encoded path character in license.txt is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /lic%65nse.txt
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-11
+    desc: Percent-encoded path character in wp-admin/install.php is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/inst%61ll.php
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-12
+    desc: Percent-encoded path character in wp-content/debug.log is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-content/deb%75g.log
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-13
     desc: >-
       Negative — percent-encoded character in a benign license article must
       not match
