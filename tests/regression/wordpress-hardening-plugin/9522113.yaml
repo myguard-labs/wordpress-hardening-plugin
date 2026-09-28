@@ -71,3 +71,27 @@ tests:
           uri: /environment/staging
         output:
           no_log_contains: id "9522113"
+  - test_title: 9522113-7
+    desc: Percent-encoded path character in .git/config is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /.g%69t/config
+        output:
+          log_contains: id "9522113"
+  - test_title: 9522113-8
+    desc: >-
+      Negative — percent-encoded character in a benign environment URL must
+      not match
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /environm%65nt/staging
+        output:
+          no_log_contains: id "9522113"

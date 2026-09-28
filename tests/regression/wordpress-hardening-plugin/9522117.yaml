@@ -31,3 +31,46 @@ tests:
             {}
         output:
           log_contains: id "9522117"
+  - test_title: 9522117-3
+    desc: Percent-encoded path character in SureTriggers namespace is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/sure-tr%69ggers/v1/connection/create-wp-connection
+          data: |
+            {}
+        output:
+          log_contains: id "9522117"
+  - test_title: 9522117-4
+    desc: >-
+      Negative — encoded SureTriggers v2 namespace does not match the v1
+      blocker
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/sure-tr%69ggers/v2/health
+          data: |
+            {}
+        output:
+          no_log_contains: id "9522117"
+  - test_title: 9522117-5
+    desc: >-
+      Negative — phase-2 URI handling must not double-decode an encoded
+      percent sign
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/sure-tr%2569ggers/v1/connection/create-wp-connection
+          data: |
+            {}
+        output:
+          no_log_contains: id "9522117"

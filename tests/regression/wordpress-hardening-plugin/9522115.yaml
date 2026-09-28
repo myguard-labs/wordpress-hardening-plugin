@@ -18,3 +18,49 @@ tests:
           uri: /wp-content/plugins/akismet/readme.txt
         output:
           no_log_contains: id "9522115"
+  - test_title: 9522115-2
+    desc: Explicitly enabled plugin readme blocking catches the raw path
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            X-WPHARD-Test-Plugin-Readme: "1"
+          port: 80
+          method: GET
+          uri: /wp-content/plugins/akismet/readme.txt
+        output:
+          log_contains: id "9522115"
+  - test_title: 9522115-3
+    desc: >-
+      Explicitly enabled plugin readme blocking catches an encoded path
+      character
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            X-WPHARD-Test-Plugin-Readme: "1"
+          port: 80
+          method: GET
+          uri: /wp-content/plugins/akismet/r%65adme.txt
+        output:
+          log_contains: id "9522115"
+  - test_title: 9522115-4
+    desc: >-
+      Negative — encoded nested documentation path is not a direct plugin
+      readme
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            X-WPHARD-Test-Plugin-Readme: "1"
+          port: 80
+          method: GET
+          uri: /wp-content/plugins/akismet/docs/r%65adme.txt
+        output:
+          no_log_contains: id "9522115"

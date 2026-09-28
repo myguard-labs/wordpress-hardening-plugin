@@ -61,3 +61,31 @@ tests:
           uri: /about-us
         output:
           no_log_contains: id "9522121"
+  - test_title: 9522121-5
+    desc: Percent-encoded path character in wp-admin is tagged
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            Accept-Encoding: gzip
+          port: 80
+          method: GET
+          uri: /wp-adm%69n/
+        output:
+          log_contains: id "9522121"
+  - test_title: 9522121-6
+    desc: Negative — encoded wp-admin text inside a public article is not tagged
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            Accept-Encoding: gzip
+          port: 80
+          method: GET
+          uri: /blog/wp-adm%69n-guide
+        output:
+          no_log_contains: id "9522121"

@@ -31,3 +31,44 @@ tests:
             {}
         output:
           log_contains: id "9522118"
+  - test_title: 9522118-3
+    desc: Percent-encoded path character in Bricks namespace is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/br%69cks/v1/render_element
+          data: |
+            {}
+        output:
+          log_contains: id "9522118"
+  - test_title: 9522118-4
+    desc: Negative — encoded benign Bricks preview route is not blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/br%69cks/v1/render_preview
+          data: |
+            {}
+        output:
+          no_log_contains: id "9522118"
+  - test_title: 9522118-5
+    desc: >-
+      Negative — phase-2 URI handling must not double-decode an encoded
+      percent sign
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/br%2569cks/v1/render_element
+          data: |
+            {}
+        output:
+          no_log_contains: id "9522118"

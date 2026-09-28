@@ -93,3 +93,27 @@ tests:
           uri: /blog/software-license-explained
         output:
           no_log_contains: id "9522100"
+  - test_title: 9522100-9
+    desc: Percent-encoded path character in readme.html is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /r%65adme.html
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-10
+    desc: >-
+      Negative — percent-encoded character in a benign license article must
+      not match
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /blog/software-lic%65nse-explained
+        output:
+          no_log_contains: id "9522100"

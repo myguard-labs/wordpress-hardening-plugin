@@ -38,3 +38,27 @@ tests:
           uri: /wp-admin/load-scripts.php?load=jquery,common
         output:
           no_log_contains: id "9522112"
+  - test_title: 9522112-4
+    desc: Percent-encoded path character in load-scripts.php is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: "/wp-admin/load-scr%69pts.php?load=\
+            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
+            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        output:
+          log_contains: id "9522112"
+  - test_title: 9522112-5
+    desc: Negative — encoded path with a short legitimate load= must not match
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/load-scr%69pts.php?load=jquery,common
+        output:
+          no_log_contains: id "9522112"

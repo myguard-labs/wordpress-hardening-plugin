@@ -60,3 +60,25 @@ tests:
           uri: /wp-config.php
         output:
           no_log_contains: id "9522114"
+  - test_title: 9522114-6
+    desc: Percent-encoded path character in wp-config.php.save is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-conf%69g.php.save
+        output:
+          log_contains: id "9522114"
+  - test_title: 9522114-7
+    desc: Negative — encoded base wp-config.php path is not a backup variant
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-conf%69g.php
+        output:
+          no_log_contains: id "9522114"

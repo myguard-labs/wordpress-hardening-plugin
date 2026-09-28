@@ -49,3 +49,14 @@ tests:
           uri: /installer-backup.php
         output:
           log_contains: id "9522120"
+  - test_title: 9522120-5
+    desc: Existing URL decoding catches an encoded character in timthumb.php
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-content/themes/sometheme/scripts/t%69mthumb.php
+        output:
+          log_contains: id "9522120"
