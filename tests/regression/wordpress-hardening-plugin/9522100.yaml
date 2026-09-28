@@ -138,6 +138,17 @@ tests:
         output:
           log_contains: id "9522100"
   - test_title: 9522100-13
+    desc: Double-encoded readme.html path is not decoded twice
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /r%2565adme.html
+        output:
+          no_log_contains: id "9522100"
+  - test_title: 9522100-14
     desc: >-
       Negative — percent-encoded character in a benign license article must
       not match
