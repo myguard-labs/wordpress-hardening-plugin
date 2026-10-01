@@ -2,14 +2,15 @@
 meta:
   author: Thijs Eilander
   description: "False-positive corpus: legitimate WordPress traffic that must
-    NOT trip any wordpress-hardening rule. Each test asserts no_log_contains
-    'id \"9522' — i.e. no plugin rule (9522xxx) fired. A failure here means
-    the plugin over-blocks real users."
+    not trip a blocking wordpress-hardening rule. Assertions exclude 9522121,
+    the informational BREACH-sensitive-path marker. A failure means the plugin
+    over-blocks real users."
   enabled: true
   name: false-positives.yaml
 # Corpus spans many rule IDs; assertions live in each test's
-# output.no_log_contains. This top-level rule_id is FTW reporting metadata
-# only (the plugin's allocated base id).
+# output.no_log_contains. The compact regular expression matches plugin IDs
+# except 9522121, which logs information without blocking. This top-level
+# rule_id is FTW reporting metadata only (the plugin's allocated base id).
 rule_id: 9522000
 tests:
   - test_title: fp-homepage
@@ -22,7 +23,7 @@ tests:
           method: GET
           uri: /
         output:
-          no_log_contains: id "9522
+          no_log_contains: id "9522([02-9]..|1[013-9].|12[02-9])"
 
   - test_title: fp-normal-post
     desc: Reading a normal permalink must not trip the plugin.
@@ -34,7 +35,7 @@ tests:
           method: GET
           uri: /2026/05/some-blog-post/
         output:
-          no_log_contains: id "9522
+          no_log_contains: id "9522([02-9]..|1[013-9].|12[02-9])"
 
   - test_title: fp-admin-ajax
     desc: >
@@ -55,8 +56,7 @@ tests:
           uri: /wp-admin/admin-ajax.php
           data: "action=heartbeat&_nonce=abc123&data=1"
         output:
-          no_log_contains: id "9522
-          no_log_contains: "per_pl=[1-9]"
+          no_log_contains: 'id "9522([02-9]..|1[013-9].|12[02-9])"|per_pl=[1-9]'
 
   - test_title: fp-wpcron-internal
     desc: >
@@ -74,8 +74,7 @@ tests:
           method: POST
           uri: /wp-cron.php?doing_wp_cron=1779142579.0
         output:
-          no_log_contains: id "9522
-          no_log_contains: "per_pl=[1-9]"
+          no_log_contains: 'id "9522([02-9]..|1[013-9].|12[02-9])"|per_pl=[1-9]'
 
   - test_title: fp-wp-login-plain
     desc: >
@@ -91,8 +90,7 @@ tests:
           method: GET
           uri: /wp-login.php
         output:
-          no_log_contains: id "9522
-          no_log_contains: "per_pl=[1-9]"
+          no_log_contains: 'id "9522([02-9]..|1[013-9].|12[02-9])"|per_pl=[1-9]'
 
   - test_title: fp-wp-login-normal-post
     desc: >
@@ -110,8 +108,7 @@ tests:
           uri: /wp-login.php
           data: "log=normaluser&pwd=correcthorsebatterystaple&wp-submit=Log+In"
         output:
-          no_log_contains: id "9522
-          no_log_contains: "per_pl=[1-9]"
+          no_log_contains: 'id "9522([02-9]..|1[013-9].|12[02-9])"|per_pl=[1-9]'
 
   - test_title: fp-wpjson-subpath-read
     desc: >
@@ -125,7 +122,7 @@ tests:
           method: GET
           uri: /wp-json/wp/v2/posts?per_page=5
         output:
-          no_log_contains: id "9522
+          no_log_contains: id "9522([02-9]..|1[013-9].|12[02-9])"
 
   - test_title: fp-upload-image
     desc: Serving a normal uploaded image must not hit the upload-traversal
@@ -138,7 +135,7 @@ tests:
           method: GET
           uri: /wp-content/uploads/2026/05/holiday-photo.webp
         output:
-          no_log_contains: id "9522
+          no_log_contains: id "9522([02-9]..|1[013-9].|12[02-9])"
 
   - test_title: fp-theme-asset
     desc: Loading a theme stylesheet must not trip the php/file rules.
@@ -150,7 +147,7 @@ tests:
           method: GET
           uri: /wp-content/themes/twentytwentyfive/style.css?ver=1.2
         output:
-          no_log_contains: id "9522
+          no_log_contains: id "9522([02-9]..|1[013-9].|12[02-9])"
 
   - test_title: fp-legit-login-whitelisted-ip
     desc: >
@@ -171,7 +168,7 @@ tests:
           uri: /wp-login.php
           data: "log=alice&pwd=correcthorsebatterystaple&wp-submit=Log+In"
         output:
-          no_log_contains: id "9522
+          no_log_contains: id "9522([02-9]..|1[013-9].|12[02-9])"
 
   - test_title: fp-tutorial-permalink-php-keywords
     desc: >
@@ -190,12 +187,11 @@ tests:
           headers: {Host: localhost, User-Agent: Mozilla/5.0}
           port: 80
           method: GET
-          uri: /2026/05/nginx-angie-the-expert-guide-to-maximum-performance-and-security/
+          uri: "/2026/05/nginx-angie-the-expert-guide-to-maximum-\
+            performance-and-security/"
         output:
-          no_log_contains: id "9522
-          no_log_contains: id "953100"
-          no_log_contains: id "953110"
-          no_log_contains: id "953120"
+          no_log_contains: "id \"9522([02-9]..|1[013-9].|12[02-9])\"|\
+            id \"9531[012]0\""
 
   - test_title: fp-orderby-legit
     desc: >
@@ -209,12 +205,13 @@ tests:
           method: GET
           uri: "/shop/?orderby=post_date&order=desc"
         output:
-          no_log_contains: id "9522
+          no_log_contains: id "9522([02-9]..|1[013-9].|12[02-9])"
 
   - test_title: fp-orderby-multicolumn
     desc: >
       Space/comma-separated multi-column orderby (WP accepts "title menu_order")
-      must pass the PL1 metachar check (9522331) and the PL2 allowlist (9522332).
+      must pass the PL1 metachar check (9522331) and the PL2 allowlist
+      (9522332).
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -223,7 +220,7 @@ tests:
           method: GET
           uri: "/?orderby=title%20menu_order&order=ASC"
         output:
-          no_log_contains: id "9522
+          no_log_contains: id "9522([02-9]..|1[013-9].|12[02-9])"
 
   - test_title: fp-order-array-reorder
     desc: >
@@ -241,7 +238,7 @@ tests:
           uri: /wp-admin/admin-ajax.php
           data: "action=save_order&order%5B%5D=12&order%5B%5D=7&order%5B%5D=33"
         output:
-          no_log_contains: id "9522
+          no_log_contains: id "9522([02-9]..|1[013-9].|12[02-9])"
 
   - test_title: fp-numeric-queryvars
     desc: >
@@ -254,7 +251,7 @@ tests:
           method: GET
           uri: "/?p=123&page_id=45&paged=2&m=202605"
         output:
-          no_log_contains: id "9522
+          no_log_contains: id "9522([02-9]..|1[013-9].|12[02-9])"
 
   - test_title: fp-cat-list-negative
     desc: >
@@ -268,7 +265,7 @@ tests:
           method: GET
           uri: "/?cat=1,2,-3"
         output:
-          no_log_contains: id "9522
+          no_log_contains: id "9522([02-9]..|1[013-9].|12[02-9])"
 
   - test_title: fp-strict-integer-params-legit
     desc: >
@@ -282,4 +279,4 @@ tests:
           method: GET
           uri: "/?user_id=5&post_id=10&id=42"
         output:
-          no_log_contains: id "9522
+          no_log_contains: id "9522([02-9]..|1[013-9].|12[02-9])"

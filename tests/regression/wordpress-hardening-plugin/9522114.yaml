@@ -17,7 +17,9 @@ tests:
         output:
           log_contains: id "9522114"
   - test_title: 9522114-2
-    desc: wp-config.old.php (atypical placement) — only the .old after wp-config is matched
+    desc: >-
+      wp-config.old.php (atypical placement) — only the .old after wp-config
+      is matched
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -50,7 +52,9 @@ tests:
         output:
           log_contains: id "9522114"
   - test_title: 9522114-5
-    desc: Negative — actual wp-config.php must NOT match (it's blocked elsewhere as .php deny)
+    desc: >-
+      Negative — actual wp-config.php must NOT match (it's blocked elsewhere
+      as .php deny)
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -82,3 +86,25 @@ tests:
           uri: /wp-config.php.b%2561k
         output:
           no_log_contains: id "9522114"
+  - test_title: 9522114-8
+    desc: Encoded question mark remains part of the path
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.bak%3Fx
+        output:
+          no_log_contains: id "9522114"
+  - test_title: 9522114-9
+    desc: A real query separator after a backup path is still blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.bak?x=1
+        output:
+          log_contains: id "9522114"
