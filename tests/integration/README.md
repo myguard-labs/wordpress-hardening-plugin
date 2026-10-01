@@ -29,7 +29,8 @@ The compose file mounts:
   `/etc/modsecurity.d/owasp-crs/plugins/`;
 - `ci-plugin/zzz-ci-config.conf` — CI-only: enables the opt-in features (GeoIP
   login control, IP reputation, scanner/REST/wp-cron blocking, strict integer
-  params) that ship disabled, and bumps detection paranoia to 2;
+  params, and plugin/theme readme blocking) that ship disabled, and bumps
+  detection paranoia to 2;
 - `ci-plugin/zzz-ci-marker-before.conf` — CI-only: the go-ftw `X-CRS-Test`
   audit-log marker (id 999999).
 

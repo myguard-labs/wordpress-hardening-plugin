@@ -33,6 +33,13 @@ jobs:
             exit 1
           fi
 
+      - name: Verify plugin readme blocking ships disabled
+        run: |
+          grep -q "setvar:tx.wphard.block_plugin_readme=0" \
+            plugins/wordpress-hardening-before.conf
+          grep -q "setvar:tx.wphard.block_plugin_readme=1" \
+            tests/integration/ci-plugin/zzz-ci-config.conf
+
       - name: Verify new rule gate coverage
         run: |
           # Verify each new blocking rule is enclosed within its gate markers

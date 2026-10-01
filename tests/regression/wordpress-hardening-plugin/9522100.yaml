@@ -227,3 +227,25 @@ tests:
           uri: /%252e/readme.html
         output:
           no_log_contains: id "9522100"
+  - test_title: 9522100-21
+    desc: Encoded question mark remains part of the path and is not blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /readme.html%3Fx
+        output:
+          no_log_contains: id "9522100"
+  - test_title: 9522100-22
+    desc: A real query delimiter after readme.html remains blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /readme.html?ver=1
+        output:
+          log_contains: id "9522100"

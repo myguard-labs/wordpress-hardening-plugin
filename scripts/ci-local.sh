@@ -139,13 +139,25 @@ gate_check BEGIN_WPHARD_RATELIMIT_LOGIN      9522411
 gate_check BEGIN_WPHARD_GEOIP_LOGIN          9522510
 gate_check BEGIN_WPHARD_IP_REPUTATION        9522603
 
+note "plugin readme default and CI override"
+if grep -q "setvar:tx.wphard.block_plugin_readme=0" \
+     plugins/wordpress-hardening-before.conf && \
+   grep -q "setvar:tx.wphard.block_plugin_readme=1" \
+     tests/integration/ci-plugin/zzz-ci-config.conf; then
+  ok "plugin readme blocking ships disabled and is enabled only in CI"
+else
+  err "plugin readme default or CI override is missing"
+fi
+
 # ── regression YAML well-formed ─────────────────────────────────────────────
 note "regression YAML parses"
+YAMLERR=$(mktemp)
+trap 'rm -f "$YAMLERR"' EXIT
 if python3 -c "import yaml,glob,sys
-[yaml.safe_load(open(f)) for f in glob.glob('tests/regression/wordpress-hardening-plugin/*.yaml')]" 2>/tmp/yamlerr; then
+[yaml.safe_load(open(f)) for f in glob.glob('tests/regression/wordpress-hardening-plugin/*.yaml')]" 2>"$YAMLERR"; then
   ok "all regression YAML valid"
 else
-  err "invalid regression YAML: $(cat /tmp/yamlerr)"
+  err "invalid regression YAML: $(cat "$YAMLERR")"
 fi
 
 printf '\n'
