@@ -6,9 +6,7 @@ meta:
   name: 9522115.yaml
 tests:
   - test_title: 9522115-1
-    desc: >
-      block_plugin_readme is OFF by default, so plugin readme.txt access must
-      NOT trigger 9522115 with the default config.
+    desc: CI enables the opt-in rule, so an unencoded plugin readme is blocked
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -16,5 +14,38 @@ tests:
           port: 80
           method: GET
           uri: /wp-content/plugins/akismet/readme.txt
+        output:
+          log_contains: id "9522115"
+  - test_title: 9522115-2
+    desc: Encoded plugin readme path is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-content/plugins/akismet/readm%65.txt
+        output:
+          log_contains: id "9522115"
+  - test_title: 9522115-3
+    desc: Negative — an encoded ordinary plugin asset path is allowed
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-content/plugins/akismet/ass%65ts/main.css
+        output:
+          no_log_contains: id "9522115"
+  - test_title: 9522115-4
+    desc: Double-encoded plugin readme path is not decoded twice
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-content/plugins/akismet/readm%2565.txt
         output:
           no_log_contains: id "9522115"
