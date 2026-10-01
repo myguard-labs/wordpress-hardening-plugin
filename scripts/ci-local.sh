@@ -144,7 +144,7 @@ if grep -q "setvar:tx.wphard.block_plugin_readme=0" \
      plugins/wordpress-hardening-before.conf && \
    grep -q "setvar:tx.wphard.block_plugin_readme=1" \
      tests/integration/ci-plugin/zzz-ci-config.conf; then
-  ok "plugin readme blocking ships disabled and is enabled only in CI"
+  ok "plugin readme default=0 and CI override=1 are present"
 else
   err "plugin readme default or CI override is missing"
 fi

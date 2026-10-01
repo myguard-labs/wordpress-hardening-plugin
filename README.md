@@ -40,8 +40,9 @@ What this plugin does so far:
 - Detect version-disclosure response headers — X-Pingback, X-Powered-By, REST Link rel=api.w.org. Real stripping must be at the proxy: `proxy_hide_header X-Pingback; proxy_hide_header X-Powered-By; more_clear_headers "Link";` (configurable, default: tag) (PL1)
 - Hard-block info-leak paths in phase:1 — readme.html, license.txt, .user.ini, wp-admin/install.php, wp-admin/setup-config.php, wp-includes/wlwmanifest.xml, wp-content/debug.log (configurable, default: block) (PL1)
 - Block CVE-2018-6389 DoS on wp-admin/load-scripts.php and load-styles.php:
-  total `load` and `load[...]` values reach 80 bytes, or 1024 bytes when a
-  WordPress core `load[chunk_N]` key is present (configurable, default: block) (PL1)
+  total `load` and `load[...]` values reach 80 bytes, or 1024 bytes only
+  when every load key is `load[chunk_N]` and each value is at most 128 bytes
+  (configurable, default: block) (PL1)
 - Block VCS / dotfile probes — .env, .git/, .svn/, .hg/, .bzr/, .htpasswd, .DS_Store (configurable, default: block) (PL1)
 - Block wp-config backup variants — .save, .old, .new, .dist, .sample, .copy, ~, numeric .1/.2 (configurable, default: block) (PL1)
 - Block plugin/theme readme.txt version-disclosure probes (configurable, default: non-block — wp-cli reads these) (PL2)
