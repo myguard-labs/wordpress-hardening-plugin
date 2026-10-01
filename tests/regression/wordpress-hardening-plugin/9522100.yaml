@@ -227,25 +227,3 @@ tests:
           uri: /%252e/readme.html
         output:
           no_log_contains: id "9522100"
-  - test_title: 9522113-encoded-1
-    desc: Encoded .env path is blocked by the VCS and dotfile rule
-    stages:
-      - input:
-          dest_addr: 127.0.0.1
-          headers: {Host: localhost, User-Agent: OWASP CRS}
-          port: 80
-          method: GET
-          uri: /.%65nv
-        output:
-          log_contains: id "9522113"
-  - test_title: 9522114-encoded-1
-    desc: Encoded wp-config.php backup path is blocked
-    stages:
-      - input:
-          dest_addr: 127.0.0.1
-          headers: {Host: localhost, User-Agent: OWASP CRS}
-          port: 80
-          method: GET
-          uri: /wp-config.php.b%61k
-        output:
-          log_contains: id "9522114"

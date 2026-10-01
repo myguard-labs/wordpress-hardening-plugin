@@ -60,3 +60,25 @@ tests:
           uri: /wp-config.php
         output:
           no_log_contains: id "9522114"
+  - test_title: 9522114-6
+    desc: Encoded wp-config.php backup path is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.b%61k
+        output:
+          log_contains: id "9522114"
+  - test_title: 9522114-7
+    desc: Double-encoded wp-config.php backup path is not decoded twice
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.b%2561k
+        output:
+          no_log_contains: id "9522114"

@@ -71,3 +71,47 @@ tests:
           uri: /environment/staging
         output:
           no_log_contains: id "9522113"
+  - test_title: 9522113-7
+    desc: Encoded .env path is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /.%65nv
+        output:
+          log_contains: id "9522113"
+  - test_title: 9522113-8
+    desc: Negative — an encoded .env-like value in the query string is allowed
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /?s=%2F.env%2F
+        output:
+          no_log_contains: id "9522113"
+  - test_title: 9522113-9
+    desc: Negative — an encoded .git-like redirect value is allowed
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /?redirect=%2F.git%2F
+        output:
+          no_log_contains: id "9522113"
+  - test_title: 9522113-10
+    desc: Double-encoded .env path is not decoded twice
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /.%2565nv
+        output:
+          no_log_contains: id "9522113"

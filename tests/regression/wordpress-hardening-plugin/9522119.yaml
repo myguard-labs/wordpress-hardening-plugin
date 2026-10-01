@@ -102,3 +102,47 @@ tests:
           uri: /wp-login.php
         output:
           no_log_contains: id "9522119"
+  - test_title: 9522119-9
+    desc: PUT on an encoded wp-admin path is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: PUT
+          uri: /wp-%61dmin/
+        output:
+          log_contains: id "9522119"
+  - test_title: 9522119-10
+    desc: PROPFIND on an encoded wp-login.php path is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: PROPFIND
+          uri: /wp-login%2ephp
+        output:
+          log_contains: id "9522119"
+  - test_title: 9522119-11
+    desc: Negative — GET on an encoded wp-login.php path remains allowed
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-login%2ephp
+        output:
+          no_log_contains: id "9522119"
+  - test_title: 9522119-12
+    desc: Double-encoded wp-admin path is not decoded twice
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: PUT
+          uri: /wp-%2561dmin/
+        output:
+          no_log_contains: id "9522119"
