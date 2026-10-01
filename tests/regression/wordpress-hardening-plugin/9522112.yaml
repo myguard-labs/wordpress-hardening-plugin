@@ -215,3 +215,56 @@ tests:
             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         output:
           no_log_contains: id "9522112"
+  - test_title: 9522112-17
+    desc: PHP trims a leading plus from the load key
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: "/wp-admin/load-scripts.php?+load=jquery,jquery-ui-core,\
+            jquery-ui-widget,jquery-ui-mouse,jquery-ui-sortable,wp-pointer,\
+            wp-util,wp-a11y,wp-i18n"
+        output:
+          log_contains: id "9522112"
+  - test_title: 9522112-18
+    desc: PHP trims a leading encoded space from the load key
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: "/wp-admin/load-styles.php?%20load=common,forms,admin-menu,\
+            dashboard,list-tables,edit,revisions,media,buttons,\
+            wp-jquery-ui-dialog,thickbox,thumbnail"
+        output:
+          log_contains: id "9522112"
+  - test_title: 9522112-19
+    desc: Negative — a short value with a leading-space key remains allowed
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/load-scripts.php?+load=jquery,common
+        output:
+          no_log_contains: id "9522112"
+  - test_title: 9522112-20
+    desc: Feature-off request ignores even a long load list
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            X-WPHard-Test-Load-Off: "1"
+          port: 80
+          method: GET
+          uri: "/wp-admin/load-scripts.php?load=jquery,jquery-ui-core,\
+            jquery-ui-widget,jquery-ui-mouse,jquery-ui-sortable,wp-pointer,\
+            wp-util,wp-a11y,wp-i18n"
+        output:
+          no_log_contains: id "9522112"
