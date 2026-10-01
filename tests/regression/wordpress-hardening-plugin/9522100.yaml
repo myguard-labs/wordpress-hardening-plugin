@@ -161,6 +161,72 @@ tests:
           uri: /blog/software-lic%65nse-explained
         output:
           no_log_contains: id "9522100"
+  - test_title: 9522100-15
+    desc: Encoded dot segment is decoded before path normalization
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /%2e/readme.html
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-16
+    desc: Encoded path separator in wp-admin/install.php is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin%2finstall.php
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-17
+    desc: Encoded dot in .user.ini is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /%2euser.ini
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-18
+    desc: Encoded setup-config.php path is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/setup-config%2ephp
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-19
+    desc: Encoded wlwmanifest.xml path is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-includes/wlwmanifest%2exml
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-20
+    desc: Double-encoded dot segment remains encoded and is not blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /%252e/readme.html
+        output:
+          no_log_contains: id "9522100"
   - test_title: 9522113-encoded-1
     desc: Encoded .env path is blocked by the VCS and dotfile rule
     stages:
