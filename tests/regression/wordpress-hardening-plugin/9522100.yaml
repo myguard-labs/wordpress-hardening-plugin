@@ -249,3 +249,36 @@ tests:
           uri: /readme.html?ver=1
         output:
           log_contains: id "9522100"
+  - test_title: 9522100-23
+    desc: Installer PHP PATH_INFO remains blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/install.php/extra
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-24
+    desc: Setup PHP PATH_INFO remains blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/setup-config.php/extra
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-25
+    desc: Near-miss PHP filename remains allowed
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/install.phpx/extra
+        output:
+          no_log_contains: id "9522100"

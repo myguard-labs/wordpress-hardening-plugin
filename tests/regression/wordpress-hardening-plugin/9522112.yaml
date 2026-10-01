@@ -338,3 +338,85 @@ tests:
             aaaaaaaaa"
         output:
           log_contains: id "9522112"
+  - test_title: 9522112-25
+    desc: PHP drops suffix after a load bracket, long value blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: "/wp-admin/load-scripts.php?load[a]x=\
+            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
+            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
+            aaaaaaaaaaaaaaaaaaaa"
+        output:
+          log_contains: id "9522112"
+  - test_title: 9522112-26
+    desc: PHP chunk key with suffix uses core tier
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: "/wp-admin/load-scripts.php?load[chunk_0]zz=\
+            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
+            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
+            aaaaaaaaaaaaaaaaaaaa"
+        output:
+          no_log_contains: id "9522112"
+  - test_title: 9522112-27
+    desc: PHP chunk key with suffix over 128 bytes uses strict tier
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: "/wp-admin/load-scripts.php?load[chunk_0]zz=\
+            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
+            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
+            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
+            aaaaaaaaa"
+        output:
+          log_contains: id "9522112"
+  - test_title: 9522112-28
+    desc: Load script PHP PATH_INFO with long load is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: "/wp-admin/load-scripts.php/extra?load=\
+            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
+            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
+            aaaaaaaaaaaaaaaaaaaa"
+        output:
+          log_contains: id "9522112"
+  - test_title: 9522112-29
+    desc: Load script PHP PATH_INFO with short load is allowed
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: "/wp-admin/load-scripts.php/extra?load=jquery,common"
+        output:
+          no_log_contains: id "9522112"
+  - test_title: 9522112-30
+    desc: Near-miss load script PHP filename remains allowed
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: "/wp-admin/load-scripts.phpx/extra?load=\
+            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
+            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
+            aaaaaaaaaaaaaaaaaaaa"
+        output:
+          no_log_contains: id "9522112"
