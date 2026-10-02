@@ -135,3 +135,68 @@ tests:
             {}
         output:
           no_log_contains: id "9522117"
+  - test_title: 9522117-11
+    desc: Traversal in the query string cannot erase the route
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/sure-triggers/v1/x?q=%2F..%2F..%2F..%2F..%2Fsafe
+          data: |
+            {}
+        output:
+          log_contains: id "9522117"
+  - test_title: 9522117-12
+    desc: rest_route after another parameter is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /?a=%2F..%2F..&rest_route=/sure-triggers/v1/x
+          data: |
+            {}
+        output:
+          log_contains: id "9522117"
+  - test_title: 9522117-13
+    desc: rest.route (PHP rewrites it to rest_route) is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /index.php?rest.route=/sure-triggers/v1/x
+          data: |
+            {}
+        output:
+          log_contains: id "9522117"
+  - test_title: 9522117-14
+    desc: Negative - benign REST route with traversal in the query is not blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/wp/v2/posts?q=%2F..%2F..%2Fsafe
+          data: |
+            {}
+        output:
+          no_log_contains: id "9522117"
+  - test_title: 9522117-15
+    desc: Negative - SureTriggers route after query traversal is not blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/wp/v2/posts?q=/../wp-json/sure-triggers/v1/
+          data: |
+            {}
+        output:
+          no_log_contains: id "9522117"
