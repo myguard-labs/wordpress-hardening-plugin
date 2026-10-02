@@ -45,7 +45,7 @@ tests:
         output:
           log_contains: id "9522117"
   - test_title: 9522117-4
-    desc: Uppercase-hex encoded SureTriggers namespace is blocked
+    desc: Uppercase encoded namespace is blocked
     stages:
       - input:
           dest_addr: 127.0.0.1
