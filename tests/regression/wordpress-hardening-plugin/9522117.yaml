@@ -200,3 +200,68 @@ tests:
             {}
         output:
           no_log_contains: id "9522117"
+  - test_title: 9522117-16
+    desc: Negative - SureTriggers namespace without /wp-json is an ordinary permalink
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /sure-triggers/v1/x
+          data: |
+            {}
+        output:
+          no_log_contains: id "9522117"
+  - test_title: 9522117-17
+    desc: Negative - /wp-json without its trailing slash is not the REST prefix
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-jsonsure-triggers/v1/x
+          data: |
+            {}
+        output:
+          no_log_contains: id "9522117"
+  - test_title: 9522117-18
+    desc: Negative - argument name that only resembles rest_route is not blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /blog/?restXroute=/sure-triggers/v1/x
+          data: |
+            {}
+        output:
+          no_log_contains: id "9522117"
+  - test_title: 9522117-19
+    desc: Negative - rest_route value is not URL-decoded a second time
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /index.php?rest_route=/%2573ure-triggers/v1/x
+          data: |
+            {}
+        output:
+          no_log_contains: id "9522117"
+  - test_title: 9522117-20
+    desc: rest[route (PHP rewrites an unclosed [ to _) is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /index.php?rest%5Broute=/sure-triggers/v1/x
+          data: |
+            {}
+        output:
+          log_contains: id "9522117"
