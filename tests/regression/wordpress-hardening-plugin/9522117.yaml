@@ -31,3 +31,107 @@ tests:
             {}
         output:
           log_contains: id "9522117"
+  - test_title: 9522117-3
+    desc: Encoded SureTriggers route (%73) is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/%73ure-triggers/v1/x
+          data: |
+            {}
+        output:
+          log_contains: id "9522117"
+  - test_title: 9522117-4
+    desc: Uppercase-hex encoded SureTriggers namespace is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/%53URE-TRIGGERS/v1/x
+          data: |
+            {}
+        output:
+          log_contains: id "9522117"
+  - test_title: 9522117-5
+    desc: Encoded wp-json prefix (%6A) is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-%6Ason/sure-triggers/v1/x
+          data: |
+            {}
+        output:
+          log_contains: id "9522117"
+  - test_title: 9522117-6
+    desc: Encoded rest_route value is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /index.php?rest_route=%2Fsure-triggers%2Fv1%2Fx
+          data: |
+            {}
+        output:
+          log_contains: id "9522117"
+  - test_title: 9522117-7
+    desc: Absolute-form encoded SureTriggers route is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: http://localhost/wp-json/%73ure-triggers/v1/x
+          data: |
+            {}
+        output:
+          log_contains: id "9522117"
+  - test_title: 9522117-8
+    desc: Negative - benign encoded REST route is not blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/wp/v2/p%6fsts
+          data: |
+            {}
+        output:
+          no_log_contains: id "9522117"
+  - test_title: 9522117-9
+    desc: Negative - double-encoded route is not decoded twice
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/%2573ure-triggers/v1/x
+          data: |
+            {}
+        output:
+          no_log_contains: id "9522117"
+  - test_title: 9522117-10
+    desc: Negative - SureTriggers path only in an unrelated query string
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /blog/?q=/wp-json/sure-triggers/v1/
+          data: |
+            {}
+        output:
+          no_log_contains: id "9522117"
