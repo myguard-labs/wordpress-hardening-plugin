@@ -1,0 +1,15 @@
+# Keep CI/test-harness wiring out of `git archive` output, which is what
+# GitHub serves for the auto-generated source tarballs of tags and branches.
+#
+# CRS plugin installers search the extracted tree recursively for
+# `*-config.conf` and require each match to carry `# Plugin name:` and
+# `# Plugin version:` headers. The CI-only stub
+# tests/integration/ci-plugin/zzz-ci-config.conf deliberately carries neither,
+# so BunkerWeb aborts on it before reaching plugins/ (issue #42). It is
+# test-harness wiring and has no business in a distributed archive.
+tests/          export-ignore
+scripts/        export-ignore
+.github/        export-ignore
+.githooks/      export-ignore
+.gitattributes  export-ignore
+.gitignore      export-ignore

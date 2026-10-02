@@ -15,6 +15,14 @@ note() { printf '\n=== %s ===\n' "$1"; }
 ok()   { printf '  \xe2\x9c\x93 %s\n' "$1"; }
 err()  { printf '  ERROR: %s\n' "$1"; FAIL=1; }
 
+# Publication tests use local Git fixtures and a stubbed GitHub CLI.
+note "release publication contract"
+if python3 tests/ci/test_release_publication.py; then
+  ok "release publication contract"
+else
+  err "release publication contract failed"
+fi
+
 # ── lint.yml: @pmFromFile references resolve ────────────────────────────────
 note "pmFromFile references"
 while read -r line; do
