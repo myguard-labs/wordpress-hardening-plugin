@@ -181,3 +181,36 @@ tests:
           uri: /search?q=%2freadme.html
         output:
           no_log_contains: id "9522100"
+  - test_title: 9522100-17
+    desc: Absolute-form encoded readme.html probe is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: http://localhost/r%65adme.html?x=1
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-18
+    desc: Negative - absolute-form, sensitive name only in query
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: http://localhost/search?q=%2freadme.html
+        output:
+          no_log_contains: id "9522100"
+  - test_title: 9522100-19
+    desc: Negative - absolute-form double-encoded readme.html
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: http://localhost/r%2565adme.html
+        output:
+          no_log_contains: id "9522100"
