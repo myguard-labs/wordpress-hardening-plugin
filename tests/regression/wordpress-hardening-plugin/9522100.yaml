@@ -93,3 +93,124 @@ tests:
           uri: /blog/software-license-explained
         output:
           no_log_contains: id "9522100"
+  - test_title: 9522100-9
+    desc: Encoded readme.html probe (%65) is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /r%65adme.html
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-10
+    desc: Encoded license.txt probe (%2E) is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /license%2Etxt
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-11
+    desc: Encoded wp-admin/install.php probe (%2e) is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/install%2ephp
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-12
+    desc: Encoded wp-content/debug.log probe with query string is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-content/debug%2elog?x=1
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-13
+    desc: Uppercase-hex encoded README.HTML probe is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /%52EADME%2eHTML
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-14
+    desc: Negative - double-encoded readme.html is not decoded twice
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /r%2565adme.html
+        output:
+          no_log_contains: id "9522100"
+  - test_title: 9522100-15
+    desc: Negative - benign percent-encoded path must not match
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /blog/caf%C3%A9-readme%20notes
+        output:
+          no_log_contains: id "9522100"
+  - test_title: 9522100-16
+    desc: Negative - sensitive name only in the query string must not match
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /search?q=%2freadme.html
+        output:
+          no_log_contains: id "9522100"
+  - test_title: 9522100-17
+    desc: Absolute-form encoded readme.html probe is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: http://localhost/r%65adme.html?x=1
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-18
+    desc: Negative - absolute-form, sensitive name only in query
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: http://localhost/search?q=%2freadme.html
+        output:
+          no_log_contains: id "9522100"
+  - test_title: 9522100-19
+    desc: Negative - absolute-form double-encoded readme.html
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: http://localhost/r%2565adme.html
+        output:
+          no_log_contains: id "9522100"
