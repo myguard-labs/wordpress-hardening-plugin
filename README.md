@@ -256,6 +256,7 @@ The plugin uses the allocated range **9522000-9522999**. Major buckets:
 | `9522099` | Plugin kill-switch (removes 9522000-9522999 except itself) |
 | `9522101`-`9522111` | xmlrpc / user-enumeration / REST API / admin-login / wp-cron blocks |
 | `9522150`-`9522155` | Per-group whitelist (uses `client_is_private`) |
+| `9522198` | Exact-path skip for known benign static assets |
 | `9522199`-`9522207` | Static-asset fast path, direct-PHP guard, files.data, uploads, sensitive files |
 | `9522300`-`9522320` | Editor / backup / DB / upload-traversal / null-byte / scanner / debug / login-injection / dangerous-admin |
 | `9522400`-`9522414` | Rate-limit gate, whitelist, per-IP counter (fixed 60s expiry), 429 block |

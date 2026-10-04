@@ -92,6 +92,60 @@ class TestSensitiveFileBoundaries(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertTrue(self.matches(path), path)
 
+    def test_static_fast_path_preserves_sensitive_path_info(self):
+        sensitive = RULES.index('id:9522202,')
+        fast_path = RULES.index('id:9522199,')
+        benign_fast_path = RULES.index('id:9522198,')
+        end_marker = RULES.index('SecMarker "END_WPHARD_STATIC_FILE_RULES"')
+        self.assertLess(benign_fast_path, fast_path)
+        self.assertLess(fast_path, sensitive)
+        self.assertLess(sensitive, end_marker)
+        fast_path_rule = RULES[fast_path:sensitive]
+        self.assertIn('skipAfter:END_WPHARD_STATIC_FILE_RULES', fast_path_rule)
+        self.assertIn('!@pmFromFile wordpress-hardening-files.data',
+                      fast_path_rule)
+        guard = re.search(r'SecRule REQUEST_FILENAME "!@rx ([^"]+)"',
+                          fast_path_rule)
+        self.assertIsNotNone(guard)
+        extension_guard = re.compile(guard.group(1))
+        benign_rule = RULES[RULES.rfind('SecRule REQUEST_FILENAME',
+                                        0, benign_fast_path):fast_path]
+        self.assertIn('@rx ^(?:/wp-content/plugins/wp-config-tools/style\\.css'
+                      '|/blog/wp-config-guide/style\\.css)$', benign_rule)
+        self.assertIn('skipAfter:END_WPHARD_STATIC_FILE_RULES', benign_rule)
+        match = re.search(
+            r'SecRule REQUEST_FILENAME "@rx ([^"]+)"\s*\\\s*"(id:9522199,[^"]*)"',
+            RULES)
+        self.assertIsNotNone(match)
+        fast_path_pattern = re.compile(match.group(1))
+        self.assertRegex(match.group(2), r',\\\s*chain\s*$')
+
+        # These PHP origins can execute the script despite the inert suffix.
+        for path in ('/wp-config.php/extra.css',
+                     '/wp-admin/install.php/extra.js'):
+            with self.subTest(path=path):
+                self.assertIsNotNone(fast_path_pattern.search(path), path)
+                self.assertTrue(self.matches(path), path)
+        for path in ('/wp-content/mu-plugins/extra.css',
+                     '/blog/wp-config.php/extra.css',
+                     '/wp-config-staging.php/extra.css',
+                     '/wp-content/mu-plugins.bak/extra.css',
+                     '/wp-config-backup/extra.css'):
+            with self.subTest(path=path):
+                self.assertTrue(any(token in path for token in self.tokens), path)
+                self.assertTrue(self.matches(path), path)
+        self.assertIsNotNone(extension_guard.search(
+            '/wp-content/plugins/test.bak/extra.css'))
+        for path in ('/wp-content/themes/site/style.css',
+                     '/wp-includes/js/jquery.js'):
+            with self.subTest(path=path):
+                self.assertIsNotNone(fast_path_pattern.search(path), path)
+                self.assertFalse(any(token in path for token in self.tokens))
+                self.assertIsNone(extension_guard.search(path), path)
+        for path in ('/wp-config.php', '/style.css.bak'):
+            with self.subTest(path=path):
+                self.assertIsNone(fast_path_pattern.search(path), path)
+
 
 if __name__ == '__main__':
     unittest.main()

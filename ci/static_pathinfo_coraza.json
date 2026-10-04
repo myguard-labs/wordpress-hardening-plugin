@@ -1,0 +1,14 @@
+[
+  {"name":"config-pathinfo","uri":"/wp-config.php/extra.css","expect_ids":[9522202],"no_expect_ids":[9522199]},
+  {"name":"install-pathinfo","uri":"/wp-admin/install.php/extra.js","expect_ids":[9522202],"no_expect_ids":[9522199]},
+  {"name":"backup-extension","uri":"/wp-content/plugins/test.bak/extra.css","expect_ids":[9522206],"no_expect_ids":[9522199]},
+  {"name":"mu-plugins-backup","uri":"/wp-content/mu-plugins.bak/extra.css","expect_ids":[9522202,9522206],"no_expect_ids":[9522199]},
+  {"name":"config-backup","uri":"/wp-config-backup/extra.css","expect_ids":[9522202],"no_expect_ids":[9522199]},
+  {"name":"ordinary-static","uri":"/wp-content/themes/site/style.css","expect_ids":[9522199],"no_expect_ids":[9522202,9522206]},
+  {"name":"plugin-benign","uri":"/wp-content/plugins/wp-config-tools/style.css","expect_ids":[9522198],"no_expect_ids":[9522202]},
+  {"name":"guide-benign","uri":"/blog/wp-config-guide/style.css","expect_ids":[9522198],"no_expect_ids":[9522202]},
+  {"name":"unbounded-config-token","uri":"/wp-config-arbitrary/extra.css","expect_ids":[9522202],"no_expect_ids":[9522198,9522199]},
+  {"name":"unbounded-mu-token","uri":"/wp-content/mu-plugins-arbitrary/extra.css","expect_ids":[9522202],"no_expect_ids":[9522198,9522199]},
+  {"name":"nested-guide","uri":"/wp-config.php/blog/wp-config-guide/style.css","expect_ids":[9522202],"no_expect_ids":[9522198,9522199]},
+  {"name":"nested-plugin","uri":"/wp-config.php/wp-content/plugins/wp-config-tools/style.css","expect_ids":[9522202],"no_expect_ids":[9522198,9522199]}
+]

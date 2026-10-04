@@ -4,8 +4,8 @@
 #   .github/workflows/integration.yml   (validate-gates)
 # Used by the pre-push git hook (.githooks/pre-push) and runnable by hand.
 #
-# Exit non-zero if any check fails. No network required except the optional
-# secrules-parsing install (skipped automatically if already present).
+# Exit non-zero if any check fails. Docker images and the optional
+# secrules-parsing install may require network access on a cold host.
 
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -14,6 +14,13 @@ FAIL=0
 note() { printf '\n=== %s ===\n' "$1"; }
 ok()   { printf '  \xe2\x9c\x93 %s\n' "$1"; }
 err()  { printf '  ERROR: %s\n' "$1"; FAIL=1; }
+
+note "PHP PATH_INFO origin behavior"
+if bash ci/test_static_pathinfo_origins.sh; then
+  ok "Apache and nginx PHP PATH_INFO behavior"
+else
+  err "PHP PATH_INFO origin behavior failed"
+fi
 
 # Publication tests use local Git fixtures and a stubbed GitHub CLI.
 note "release publication contract"

@@ -45,6 +45,9 @@ jobs:
           : > tests/logs/apache/audit.log
           chmod -R 777 tests/logs
 
+      - name: Verify PHP PATH_INFO at Apache and nginx origins
+        run: bash ci/test_static_pathinfo_origins.sh
+
       - name: Stage plugins dir (real plugins + CI extras)
         run: |
           rm -rf tests/integration/.plugins-staged
