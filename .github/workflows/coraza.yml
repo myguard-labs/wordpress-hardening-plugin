@@ -48,6 +48,15 @@ jobs:
             wordpress-hardening-before.conf \
             wordpress-hardening-after.conf
 
+      - name: Verify static PATH_INFO runtime matches
+        working-directory: tests/coraza
+        run: |
+          "$RUNNER_TEMP/coraza-probe" -tx ../../ci/static_pathinfo_coraza.json \
+            ../../plugins/wordpress-hardening-config.conf \
+            ../../tests/integration/ci-plugin/zzz-ci-config.conf \
+            ../../plugins/wordpress-hardening-before.conf \
+            ../../plugins/wordpress-hardening-after.conf
+
       - name: Guard — ratelimit file must stay outside the loader globs
         run: |
           # The Coraza-incompatible rate-limit rules live in an opt-in file
