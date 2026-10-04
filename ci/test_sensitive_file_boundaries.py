@@ -35,6 +35,23 @@ class TestSensitiveFileBoundaries(unittest.TestCase):
         if match is None:
             raise AssertionError('9522202 path-boundary regex is missing')
         cls.pattern = re.compile(match.group(1))
+        # The SecLang expression repeats this atom for each file family.
+        # Catch a missed occurrence or drift from this test's finite list.
+        suffix_atoms = re.findall(
+            r'\(\?:\\\.\(\?:\(\?:[^)]+\)\[0-9\]\*\|\[0-9\]\+\)\|~\)',
+            match.group(1),
+        )
+        expected = (
+            r'(?:\.(?:(?:bak|backup|save|old|new|orig|tmp|swp|swo|txt|inc|'
+            r'dist|sample|copy)[0-9]*|[0-9]+)|~)'
+        )
+        if len(suffix_atoms) != 27 or set(suffix_atoms) != {expected}:
+            raise AssertionError('9522202 backup suffix atoms differ')
+        names = re.search(r'\(\?:([a-z|]+)\)\[0-9\]\*', expected)
+        if names is None or set(BACKUP_SUFFIXES) != {
+            f'.{name}' for name in names.group(1).split('|')
+        } | {'.1', '~'}:
+            raise AssertionError('9522202 test suffix list differs from rule')
         cls.tokens = [
             line for line in DATA.splitlines()
             if line and not line.startswith('#')
@@ -141,6 +158,40 @@ class TestSensitiveFileBoundaries(unittest.TestCase):
         self.assertFalse(self.matches(
             '/wp-content/mu-plugins.bak.tutorial.txt/secret.php'
         ))
+
+    def test_numbered_backup_suffixes_and_php_sandwiches(self):
+        for suffix in BACKUP_SUFFIXES:
+            if suffix not in ('.1', '~'):
+                path = '/wp-config.php' + suffix + '12'
+                with self.subTest(path=path):
+                    self.assertTrue(self.matches(path), path)
+
+        for base in ('/wp-config.php', '/wp-config-staging.php',
+                     '/wp-admin/install.php', '/nginx.conf'):
+            for suffix in ('.bak1', '.save12', '.old2',
+                           '.bak1.save2.txt3'):
+                path = base + suffix
+                with self.subTest(path=path):
+                    self.assertTrue(self.matches(path), path)
+                tutorial = path + '.tutorial/'
+                with self.subTest(path=tutorial):
+                    self.assertFalse(self.matches(tutorial), tutorial)
+
+        for base in ('/wp-config.php', '/wp-config-staging.php',
+                     '/wp-admin/wp-config.php', '/wp-admin/install.php'):
+            for suffix in ('.bak.php', '.bak1.php5', '.save2.old3.phtml'):
+                path = base + suffix
+                with self.subTest(path=path):
+                    self.assertTrue(self.matches(path), path)
+                tutorial = base + '.bak.tutorial' + suffix[suffix.rfind('.'):]
+                with self.subTest(path=tutorial):
+                    self.assertFalse(self.matches(tutorial), tutorial)
+
+        for path in ('/wp-config.php.bakfoo',
+                     '/wp-config.php.bak1foo',
+                     '/wp-admin/install.php.bak1.tutorial.php'):
+            with self.subTest(path=path):
+                self.assertFalse(self.matches(path), path)
 
     def test_numeric_config_copies(self):
         for base in ('/wp-config2', '/wp-config12',

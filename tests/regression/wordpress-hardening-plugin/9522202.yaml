@@ -185,7 +185,7 @@ tests:
         output:
           no_log_contains: id "9522202"
   - test_title: 9522202-15
-    desc: benign staging PHP filename
+    desc: 9522202-negative staging PHP filename (sibling 9522200 still matches)
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -811,3 +811,234 @@ tests:
           uri: /wp-config12.phtml
         output:
           log_contains: id "9522202"
+  - test_title: 9522202-72
+    desc: numbered backup suffix
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.bak1
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-73
+    desc: numbered save suffix
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.save1
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-74
+    desc: numbered old suffix
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.old2
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-75
+    desc: stacked numbered backup suffixes
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.bak1.save2.txt3
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-76
+    desc: numbered installer backup
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/install.php.bak1
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-77
+    desc: numbered nginx config backup
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /nginx.conf.bak1
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-78
+    desc: numbered backup tutorial
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.bak1.tutorial/
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-79
+    desc: malformed numbered backup lookalike
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.bak1foo
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-80
+    desc: PHP backup with final PHP alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.bak.php
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-81
+    desc: staging PHP backup with final PHP alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-staging.php.bak.php
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-82
+    desc: installer PHP backup with final PHP alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/install.php.bak.php
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-83
+    desc: nested config backup with final PHP alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/wp-config.php.bak.php
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-84
+    desc: numbered backup with final numbered PHP alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.bak1.php5
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-85
+    desc: stacked installer backup with final PHP alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/install.php.save2.old3.phtml
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-86
+    desc: dotted tutorial before PHP alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.bak.tutorial.php
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-87
+    desc: staging dotted tutorial before PHP alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-staging.php.bak.tutorial.php5
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-88
+    desc: installer dotted tutorial before PHP alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/install.php.bak.tutorial.php
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-89
+    desc: malformed numbered installer tutorial
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/install.php.bak1.tutorial.php
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-90
+    desc: encoded dot in config backup is decoded by engine
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config%2ephp.bak
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-91
+    desc: encoded dot in installer alias is decoded by engine
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/install%2ephp
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-92
+    desc: encoded dot tutorial stays outside 9522202
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config%2ephp.tutorial/
+        output:
+          no_log_contains: id "9522202"
