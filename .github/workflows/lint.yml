@@ -16,6 +16,7 @@ jobs:
   validate-files:
     name: Validate Plugin Files
     runs-on: [self-hosted, builder02, lxc]
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
         with:
@@ -74,5 +75,6 @@ jobs:
 
   plugin-lint:
     needs: validate-files
-    # Official OWASP CRS plugin lint (pinned SHA for v3.0.0).
-    uses: coreruleset/crs-plugin-test-action/.github/workflows/lint.yaml@7e1ee6d07105ae3cb6eec95e45acb5e1a895e3d4
+    # Local copy of the OWASP CRS plugin lint checks. Repository policy permits
+    # reusable workflows from this repository, but rejects external calls.
+    uses: ./.github/workflows/plugin-lint.yml
