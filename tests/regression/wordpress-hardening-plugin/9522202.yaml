@@ -393,3 +393,421 @@ tests:
           uri: /wp-config-staging.php.save-guide/
         output:
           no_log_contains: id "9522202"
+  - test_title: 9522202-34
+    desc: sensitive hyphenated config tilde backup
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-staging.php~
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-35
+    desc: sensitive hyphenated config text backup
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-staging.php.txt
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-36
+    desc: sensitive installer tilde backup
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/install.php~
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-37
+    desc: benign dotted config tutorial
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.tutorial/
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-38
+    desc: benign old config tutorial
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-old.php.tutorial/
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-39
+    desc: benign readme tutorial
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /readme.tutorial/
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-40
+    desc: benign text backup lookalike
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-staging.php.txt-guide/
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-41
+    desc: sensitive readme tilde backup
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /readme.html~
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-42
+    desc: sensitive nginx text backup
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /nginx.conf.txt
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-43
+    desc: malformed encoded slash lookalike
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /readme.tutorial%2f
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-44
+    desc: sensitive PHP 5 config alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php5
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-45
+    desc: sensitive PHP 4 config alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php4
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-46
+    desc: sensitive numbered PHP config alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php74
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-47
+    desc: sensitive numbered staging config alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-staging.php5
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-48
+    desc: sensitive phtml staging config alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-staging.phtml
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-49
+    desc: sensitive phps staging config alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-staging.phps
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-50
+    desc: sensitive pht staging config alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-staging.pht
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-51
+    desc: sensitive phar staging config alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-staging.phar
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-52
+    desc: sensitive installer phtml alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/install.phtml
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-53
+    desc: benign PHP 5 tutorial
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php5.tutorial/
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-54
+    desc: benign phtml tutorial
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-staging.phtml.tutorial/
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-55
+    desc: benign phar tutorial
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/install.phar.tutorial/
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-56
+    desc: sensitive double backup suffix
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.bak.txt
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-57
+    desc: sensitive triple backup suffix
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.bak.txt.old
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-58
+    desc: sensitive backup before PHP alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.bak.php.save
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-59
+    desc: sensitive hyphenated double backup
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-staging.php.bak.txt
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-60
+    desc: sensitive nginx double backup
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /nginx.conf.bak.txt
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-61
+    desc: sensitive directory double backup
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-content/mu-plugins.bak.txt/secret.php
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-62
+    desc: sensitive installer double backup
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/install.php.bak.txt
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-63
+    desc: benign tutorial within config suffixes
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-staging.php.bak.tutorial.txt/
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-64
+    desc: benign tutorial within nginx suffixes
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /nginx.conf.bak.tutorial.txt/
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-65
+    desc: benign tutorial within readme suffixes
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /readme.html.bak.tutorial.txt/
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-66
+    desc: sensitive numeric config copy
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config2.php
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-67
+    desc: sensitive numbered backup copy
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-backup2.php
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-68
+    desc: sensitive numeric copy double backup
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config2.php.bak.txt
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-69
+    desc: benign numeric config guide
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config2-guide/
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-70
+    desc: benign numeric backup tutorial
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-backup2.php.tutorial/
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-71
+    desc: sensitive numeric copy phtml alias
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config12.phtml
+        output:
+          log_contains: id "9522202"
