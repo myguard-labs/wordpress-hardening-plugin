@@ -22,7 +22,10 @@ class TestSensitiveFileBoundaries(unittest.TestCase):
         rule = RULES.split('id:9522202,', 1)[1].split('id:9522208,', 1)[0]
         if 'chain"' not in rule:
             raise AssertionError('9522202 must chain from the broad data-file match')
-        if '@pmFromFile wordpress-hardening-files.data' not in RULES:
+        if re.search(
+            r'SecRule REQUEST_FILENAME "@pmFromFile wordpress-hardening-files\.data"'
+            r'\s*\\\s*"id:9522202,', RULES
+        ) is None:
             raise AssertionError('9522202 data-file match is missing')
         match = re.search(r'SecRule REQUEST_FILENAME "!@rx ([^"]+)"', rule)
         if match is None:
