@@ -1,26 +1,19 @@
-"""Direct checks for rule 9522202's data-file and path-boundary contract."""
+"""Rule 9522202 must preserve the data-file block except for exact paths."""
 
 import re
 import unittest
 from pathlib import Path
+from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parents[1]
-RULES = (ROOT / "plugins/wordpress-hardening-before.conf").read_text()
-DATA = (ROOT / "plugins/wordpress-hardening-files.data").read_text()
-DIRECTORY_TOKENS = {
-    '/wp-content/backups-dup-pro', '/wp-content/mu-plugins',
-    '/wp-content/upgrade', '/wp-content/wp-rocket-config',
-    '/wp-content/uploads/sucuri', '/wp-content/uploads/updraft',
-    '/wp-admin/install', '/wp-admin/includes',
-}
-# Mirrors the 9522114 backup vocabulary; .1 represents its numeric branch.
-BACKUP_SUFFIXES = (
-    '.bak', '.backup', '.save', '.old', '.new', '.orig', '.tmp',
-    '.swp', '.swo', '.txt', '.inc', '.dist', '.sample', '.copy',
-    '.1', '~',
+RULES = (ROOT / 'plugins/wordpress-hardening-before.conf').read_text()
+DATA = (ROOT / 'plugins/wordpress-hardening-files.data').read_text()
+EXCEPTIONS = (
+    '/blog/wp-config-guide/',
+    '/nginx.conf-tutorial/',
+    '/wp-content/mu-plugins-info/',
+    '/wp-config-staging.php',
 )
-README_EXTENSIONS = ('txt', 'htm', 'html', 'md', 'rst')
-PHP_EXTENSIONS = ('php', 'php4', 'php5', 'php74', 'phps', 'phtml', 'pht', 'phar')
 
 
 class TestSensitiveFileBoundaries(unittest.TestCase):
@@ -28,211 +21,72 @@ class TestSensitiveFileBoundaries(unittest.TestCase):
     def setUpClass(cls):
         rule = RULES.split('id:9522202,', 1)[1].split('id:9522208,', 1)[0]
         if 'chain"' not in rule:
-            raise AssertionError('9522202 must chain to the path boundary')
+            raise AssertionError('9522202 must chain from the broad data-file match')
         if '@pmFromFile wordpress-hardening-files.data' not in RULES:
-            raise AssertionError('9522202 data-file prefilter is missing')
-        match = re.search(r'SecRule REQUEST_FILENAME "@rx ([^"]+)"', rule)
+            raise AssertionError('9522202 data-file match is missing')
+        match = re.search(r'SecRule REQUEST_FILENAME "!@rx ([^"]+)"', rule)
         if match is None:
-            raise AssertionError('9522202 path-boundary regex is missing')
+            raise AssertionError('9522202 negative exception is missing')
         cls.pattern = re.compile(match.group(1))
-        # The SecLang expression repeats this atom for each file family.
-        # Catch a missed occurrence or drift from this test's finite list.
-        suffix_atoms = re.findall(
-            r'\(\?:\\\.\(\?:\(\?:[^)]+\)\[0-9\]\*\|\[0-9\]\+\)\|~\)',
-            match.group(1),
-        )
-        expected = (
-            r'(?:\.(?:(?:bak|backup|save|old|new|orig|tmp|swp|swo|txt|inc|'
-            r'dist|sample|copy)[0-9]*|[0-9]+)|~)'
-        )
-        if len(suffix_atoms) != 27 or set(suffix_atoms) != {expected}:
-            raise AssertionError('9522202 backup suffix atoms differ')
-        names = re.search(r'\(\?:([a-z|]+)\)\[0-9\]\*', expected)
-        if names is None or set(BACKUP_SUFFIXES) != {
-            f'.{name}' for name in names.group(1).split('|')
-        } | {'.1', '~'}:
-            raise AssertionError('9522202 test suffix list differs from rule')
-        cls.tokens = [
-            line for line in DATA.splitlines()
-            if line and not line.startswith('#')
-        ]
+        cls.tokens = tuple(line for line in DATA.splitlines()
+                           if line and not line.startswith('#'))
 
     def matches(self, path):
-        path = path.lower()
-        return any(token in path for token in self.tokens) and bool(self.pattern.search(path))
+        # Model the decoded, lowercased REQUEST_FILENAME used by the chained
+        # SecRules. The engine regression suite checks actual transformations.
+        path = unquote(path).lower()
+        return any(token in path for token in self.tokens) and not bool(
+            self.pattern.search(path))
 
-    def test_each_token_exact_backup_and_path_suffix(self):
+    def test_every_data_token_remains_protected(self):
         for token in self.tokens:
-            if token.endswith('/'):
-                paths = (token, token + 'secret.php')
-            elif token == '/readme.':
-                paths = tuple(
-                    f'/readme.{ext}{suffix}'
-                    for ext in README_EXTENSIONS
-                    for suffix in ('', *BACKUP_SUFFIXES)
-                ) + ('/readme.txt/extra',)
-            elif token == '/wp-config':
-                paths = tuple(
-                    base + suffix
-                    for base in ('/wp-config', '/wp-config.php')
-                    for suffix in ('', *BACKUP_SUFFIXES)
-                ) + ('/wp-config.php/extra', '/wp-config.old.php')
-            elif token in DIRECTORY_TOKENS:
-                paths = (token, token + '/secret.php') + tuple(
-                    token + suffix + '/secret.php'
-                    for suffix in BACKUP_SUFFIXES
-                )
-            else:
-                paths = (token, token + '/extra') + tuple(
-                    token + suffix for suffix in BACKUP_SUFFIXES
-                )
-            for path in paths:
-                with self.subTest(token=token, path=path):
-                    self.assertTrue(self.matches(path), path)
+            with self.subTest(token=token):
+                self.assertTrue(self.matches(token), token)
 
-    def test_each_token_nearby_slug_stays_accessible(self):
-        for token in self.tokens:
-            if token.endswith('/'):
-                path = token[:-1] + '-guide/'
-            elif token == '/readme.':
-                path = '/readme.txt-guide/'
-            elif token == '/wp-config':
-                path = '/wp-config-staging.php'
-            else:
-                path = token + '-guide/'
-            with self.subTest(token=token, path=path):
-                self.assertFalse(self.matches(path), path)
-
-            if not token.endswith('/'):
-                dotted = (
-                    '/readme.tutorial/' if token == '/readme.'
-                    else '/wp-config.php.tutorial/' if token == '/wp-config'
-                    else token + '.tutorial/'
-                )
-                with self.subTest(token=token, path=dotted):
-                    self.assertFalse(self.matches(dotted), dotted)
-
-    def test_hyphenated_config_and_installer_backups(self):
-        self.assertFalse(self.matches('/wp-config-staging.php'))
-        for suffix in BACKUP_SUFFIXES:
-            for base in ('/wp-config-staging.php', '/wp-admin/install.php'):
-                path = base + suffix
-                with self.subTest(path=path):
-                    self.assertTrue(self.matches(path), path)
-
-    def test_config_and_installer_php_aliases(self):
-        for extension in PHP_EXTENSIONS:
-            for base in ('/wp-config', '/wp-config-old',
-                         '/wp-config-staging', '/wp-admin/install'):
-                path = f'{base}.{extension}'
-                with self.subTest(path=path):
-                    if path == '/wp-config-staging.php':
-                        self.assertFalse(self.matches(path), path)
-                    else:
-                        self.assertTrue(self.matches(path), path)
-
-                    for suffix in ('.save', '~'):
-                        backup = path + suffix
-                        with self.subTest(path=backup):
-                            self.assertTrue(self.matches(backup), backup)
-
-                    tutorial = path + '.tutorial/'
-                    with self.subTest(path=tutorial):
-                        self.assertFalse(self.matches(tutorial), tutorial)
-
-    def test_stacked_backup_suffixes_keep_component_boundaries(self):
-        for base in ('/wp-config.php', '/wp-config-old.php',
-                     '/wp-config-staging.php', '/wp-admin/install.php',
-                     '/nginx.conf', '/readme.html'):
-            for suffix in ('.bak', '.bak.txt', '.bak.txt.old'):
-                path = base + suffix
-                with self.subTest(path=path):
-                    self.assertTrue(self.matches(path), path)
-
-            lookalike = base + '.bak.tutorial.txt/'
-            with self.subTest(path=lookalike):
-                self.assertFalse(self.matches(lookalike), lookalike)
-
-        self.assertTrue(self.matches('/wp-config.bak.php.save'))
-        self.assertTrue(self.matches('/wp-content/mu-plugins.bak.txt/secret.php'))
-        self.assertFalse(self.matches(
-            '/wp-content/mu-plugins.bak.tutorial.txt/secret.php'
-        ))
-
-    def test_numbered_backup_suffixes_and_php_sandwiches(self):
-        for suffix in BACKUP_SUFFIXES:
-            if suffix not in ('.1', '~'):
-                path = '/wp-config.php' + suffix + '12'
-                with self.subTest(path=path):
-                    self.assertTrue(self.matches(path), path)
-
-        for base in ('/wp-config.php', '/wp-config-staging.php',
-                     '/wp-admin/install.php', '/nginx.conf'):
-            for suffix in ('.bak1', '.save12', '.old2',
-                           '.bak1.save2.txt3'):
-                path = base + suffix
-                with self.subTest(path=path):
-                    self.assertTrue(self.matches(path), path)
-                tutorial = path + '.tutorial/'
-                with self.subTest(path=tutorial):
-                    self.assertFalse(self.matches(tutorial), tutorial)
-
-        for base in ('/wp-config.php', '/wp-config-staging.php',
-                     '/wp-admin/wp-config.php', '/wp-admin/install.php'):
-            for suffix in ('.bak.php', '.bak1.php5', '.save2.old3.phtml'):
-                path = base + suffix
-                with self.subTest(path=path):
-                    self.assertTrue(self.matches(path), path)
-                tutorial = base + '.bak.tutorial' + suffix[suffix.rfind('.'):]
-                with self.subTest(path=tutorial):
-                    self.assertFalse(self.matches(tutorial), tutorial)
-
-        for path in ('/wp-config.php.bakfoo',
-                     '/wp-config.php.bak1foo',
-                     '/wp-admin/install.php.bak1.tutorial.php'):
+    def test_only_explicit_complete_paths_are_exempt(self):
+        for path in EXCEPTIONS:
             with self.subTest(path=path):
                 self.assertFalse(self.matches(path), path)
+                self.assertTrue(self.matches(path + 'extra'), path)
+                self.assertTrue(self.matches(path + '.bak'), path)
+                self.assertTrue(self.matches('/wp-config.php' + path), path)
+                self.assertTrue(self.matches('/wp-admin/install.php' + path), path)
 
-    def test_numeric_config_copies(self):
-        for base in ('/wp-config2', '/wp-config12',
-                     '/wp-config-backup2', '/wp-config-old12'):
-            for extension in ('', '.php', '.php5', '.phtml'):
-                path = base + extension
-                with self.subTest(path=path):
-                    self.assertTrue(self.matches(path), path)
-                    self.assertTrue(self.matches(path + '.bak.txt'))
-
-                tutorial = path + '.tutorial/'
-                with self.subTest(path=tutorial):
-                    self.assertFalse(self.matches(tutorial), tutorial)
-
-        self.assertFalse(self.matches('/wp-config2-guide/'))
-
-    def test_sensitive_variants(self):
-        for path in ('/wp-config-sample.php', '/wp-config.php.save',
-                     '/wp-config-backup.php', '/blog/wp-config.php',
-                     '/wp-config-old.php.save',
-                     '/wp-config-staging.php.save',
-                     '/wp-config-staging.php.txt',
-                     '/wp-config-staging.php~',
-                     '/blog/nginx.conf', '/nginx.conf.bak',
-                     '/wp-admin/install.php.bak', '/wp-admin/install.php~',
-                     '/wp-admin/install.php5',
-                     '/wp-content/mu-plugins/test.php'):
+    def test_reviewed_cross_product_and_repeated_stacks(self):
+        for path in (
+            '/wp-admin/wp-config2.bak.phps',
+            '/wp-admin/wp-config-staging.bak.phps',
+            '/wp-admin/wp-config.php.bak.php.bak.phps',
+            '/wp-admin/install.php.bak.php.bak.phps',
+        ):
             with self.subTest(path=path):
-                self.assertTrue(self.matches(path))
+                self.assertTrue(self.matches(path), path)
 
-    def test_permalinks_and_lookalikes(self):
-        for path in ('/blog/wp-config-guide/', '/nginx.conf-tutorial/',
-                     '/nginx.conf.tutorial/',
-                     '/wp-config.php.tutorial/',
-                     '/wp-config-old.php.tutorial/',
-                     '/readme.tutorial/',
-                     '/wp-content/mu-plugins-info/', '/wp-config-staging.php',
-                     '/wp-content/mu-plugins.bak-guide/',
-                     '/wp-content/upgrade-guide/', '/blog/license.txt-guide/'):
+    def test_php_alias_backup_and_path_info_variants(self):
+        for path in (
+            '/wp-config.php', '/wp-config.php.save',
+            '/wp-config-staging.php.bak', '/wp-config-staging.phps',
+            '/wp-config-staging.php5', '/wp-admin/install.php',
+            '/wp-admin/install.php.bak.php', '/nginx.conf.txt',
+            '/wp-content/mu-plugins.bak/secret.php',
+            '/wp-config.php/blog/wp-config-guide/',
+            '/wp-admin/install.php/nginx.conf-tutorial/',
+            '/wp-config%2ephp.bak',
+        ):
             with self.subTest(path=path):
-                self.assertFalse(self.matches(path))
+                self.assertTrue(self.matches(path), path)
+
+    def test_malformed_and_unrelated_paths(self):
+        for path in ('/unrelated/', '/index.php', '/blog/%00unrelated'):
+            with self.subTest(path=path):
+                self.assertFalse(self.matches(path), path)
+        for path in (
+            '/blog/wp-config-guide/%00',
+            '/wp-config-staging.php%2ebak',
+            '/nginx.conf-tutorial%2fbak',
+        ):
+            with self.subTest(path=path):
+                self.assertTrue(self.matches(path), path)
 
 
 if __name__ == '__main__':
