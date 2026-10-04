@@ -1,5 +1,5 @@
 ---
-on:
+on:  # yamllint disable-line rule:truthy
   push:
     branches: [master]
   pull_request:
@@ -18,16 +18,22 @@ jobs:
     runs-on: [self-hosted, builder02, lxc]
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+      # actions/checkout v4.2.2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
-      - name: Sensitive file boundary unit tests
-        run: python3 -B -m unittest discover -s ci -p 'test_*.py'
+      - name: CI unit tests
+        run: |
+          python3 -m venv "$RUNNER_TEMP/plugin-lint-venv"
+          "$RUNNER_TEMP/plugin-lint-venv/bin/python" -m pip install \
+            --disable-pip-version-check PyYAML==6.0.2
+          "$RUNNER_TEMP/plugin-lint-venv/bin/python" -B -m unittest \
+            discover -s ci -p 'test_*.py'
 
       - name: Check @pmFromFile references
         run: |
-          # Validate that all @pmFromFile references point to existing .data files
+          # Validate that @pmFromFile references point to existing .data files.
           grep -r "@pmFromFile" plugins/*.conf | while read -r line; do
             file=$(echo "$line" | sed -n 's/.*@pmFromFile "\?\([^ "]*\).*/\1/p')
             if [ -n "$file" ]; then
@@ -42,9 +48,11 @@ jobs:
       - name: Check Rule ID ranges
         run: |
           # Validate that all rules are in the allocated range 9522000-9522999
-          grep -o 'id:[0-9]*' plugins/*.conf | cut -d: -f2 | while read -r id; do
+          grep -o 'id:[0-9]*' plugins/*.conf | cut -d: -f2 |
+            while read -r id; do
             if [ "$id" -lt 9522000 ] || [ "$id" -gt 9522999 ]; then
-              echo "ERROR: Rule ID $id outside allocated range (9522000-9522999)"
+              echo "ERROR: Rule ID $id outside allocated range" \
+                "(9522000-9522999)"
               exit 1
             fi
           done
@@ -53,7 +61,10 @@ jobs:
       - name: Check for duplicate Rule IDs
         run: |
           # Ensure no duplicate rule IDs
-          dupes=$(grep -oh 'id:[0-9]*' plugins/*.conf | cut -d: -f2 | sort | uniq -d)
+          dupes=$(
+            grep -oh 'id:[0-9]*' plugins/*.conf |
+              cut -d: -f2 | sort | uniq -d
+          )
           if [ -n "$dupes" ]; then
             echo "ERROR: Duplicate Rule IDs found: $dupes"
             exit 1
@@ -67,7 +78,8 @@ jobs:
             ruleid=$(basename "$testfile" .yaml)
             # Verify this rule ID exists in config files
             if ! grep -q "id:$ruleid" plugins/*.conf; then
-              echo "ERROR: Test file $testfile references non-existent rule ID $ruleid"
+              echo "ERROR: Test file $testfile references" \
+                "non-existent rule ID $ruleid"
               exit 1
             fi
           done

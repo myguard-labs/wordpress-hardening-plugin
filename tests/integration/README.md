@@ -29,9 +29,11 @@ The compose file mounts:
   `/etc/modsecurity.d/owasp-crs/plugins/`;
 - `ci-plugin/zzz-ci-config.conf` — CI-only: enables the opt-in features (GeoIP
   login control, IP reputation, scanner/REST/wp-cron blocking, strict integer
-  params) that ship disabled, and bumps detection paranoia to 2;
-- `ci-plugin/zzz-ci-marker-before.conf` — CI-only: the go-ftw `X-CRS-Test`
-  audit-log marker (id 999999).
+  params) that ship disabled, and bumps detection paranoia to 2.
+
+go-ftw's `X-CRS-Test` markers are recorded by audit part B directly. A
+separate marker rule duplicates them in part H and can make go-ftw capture a
+partially written marker line, breaking exact start/end matching.
 
 Engine settings (`SecRuleEngine DetectionOnly`, serial native audit log, body
 access) come from the image's `MODSEC_*` environment variables, set in the
@@ -89,8 +91,9 @@ differ in determinism:
   / encoding / header casing that **must still be blocked** (guards against
   bypassable rules; includes the regression for the `t:lowercase` GeoIP fix).
 - **`false-positives.yaml`** — legitimate WordPress traffic (homepage,
-  admin-ajax, wp-cron, REST sub-paths, assets, whitelisted login) that **must
-  NOT** trip any `9522xxx` rule (guards against over-blocking).
+  admin-ajax, wp-cron, REST sub-paths, assets, whitelisted login) that must
+  not trip any blocking `9522xxx` rule. Six sensitive-path cases require the
+  passive BREACH audit marker `9522121` and reject every other `9522xxx` ID.
 
 Apache only, for the same reason the nginx job is parse/load only: the corpus
 needs a deterministic pass/fail and libmodsecurity3 v3 cannot provide one. The
@@ -107,7 +110,7 @@ caught here regardless of engine.
 - `docker-compose.yml` — the stack: official CRS images + stub backend, plugin
   mounts, `MODSEC_*` env.
 - `ci-plugin/` — CI-only plugin files mounted into the CRS plugins dir
-  (feature gates + PL bump, go-ftw marker). **Never shipped to production.**
+  (feature gates + PL bump). **Never shipped to production.**
 - `backend/nginx.conf` — stub origin returning 200 on every path.
 - `.ftw.yml` — committed go-ftw config (Apache @ :8001 + pre-existing ignores).
   The nginx/corpus workflows generate `.ftw.nginx.yml` / `.ftw.corpus.yml` from
