@@ -35,7 +35,8 @@ What this plugin does so far:
 - IP-based rate limiting for wp-login.php (configurable, default: 5 attempts per 60 seconds, replies with HTTP 429 per RFC 6585) (PL1)
 - GeoIP-based access control for wp-login.php (configurable, default: disabled) (PL1)
 - Automatic IP reputation blocklist blocking all requests from listed IPs/CIDRs (configurable, default: disabled) (PL1)
-- Trusted-proxy pinning for X-Forwarded-For (configurable, default: disabled — backward compatible) (PL1)
+- Trusted-proxy pinning for X-Forwarded-For (enabled by default; no proxies
+  trusted until configured) (PL1)
 - IPv6-aware client-IP resolution and private-network whitelisting (loopback + RFC 1918 + IPv6 `::1` + ULA `fc00::/7`)
 - Detect version-disclosure response headers — X-Pingback, X-Powered-By, REST Link rel=api.w.org. Real stripping must be at the proxy: `proxy_hide_header X-Pingback; proxy_hide_header X-Powered-By; more_clear_headers "Link";` (configurable, default: tag) (PL1)
 - Hard-block info-leak paths in phase:1 — readme.html, license.txt, .user.ini, wp-admin/install.php, wp-admin/setup-config.php, wp-includes/wlwmanifest.xml, wp-content/debug.log (configurable, default: block) (PL1)
@@ -77,17 +78,25 @@ This allows internal systems (cron jobs, monitoring, load balancers) to access t
 
 ### Trusted-Proxy Pinning
 
-By default the plugin honours `X-Forwarded-For` unconditionally — this is backward compatible and correct for any deployment behind a single trusted proxy (Cloudflare, nginx with `set_real_ip_from`, HAProxy). On a server with direct internet exposure, an attacker can otherwise spoof `X-Forwarded-For` and bypass the private-IP whitelist or rotate the rate-limit key.
+By default the plugin ignores `X-Forwarded-For` and uses `REMOTE_ADDR` because
+trusted-proxy pinning is enabled and the shipped proxy list is empty. A direct
+client cannot claim a private address to obtain the private-IP whitelist.
 
-To eliminate that footgun:
+For a reverse-proxy deployment, populate
+`plugins/wordpress-hardening-trusted-proxies.data` with only the CIDRs of your
+real upstream proxies. Those proxies **must overwrite client-supplied XFF**,
+because the resolver uses its leftmost address. XFF is then honoured only when
+`REMOTE_ADDR` matches the list; all other peers still use `REMOTE_ADDR`.
 
-1. Populate `plugins/wordpress-hardening-trusted-proxies.data` with the public CIDRs of your real upstream proxies (one per line).
-2. Enable pinning in `plugins/wordpress-hardening-config.conf`:
-   ```bash
-   SecAction "id:9522055,phase:1,nolog,pass,t:none,setvar:'tx.wphard.trusted_proxies_enabled=1'"
-   ```
+When XFF is present but its peer is not trusted, the peer's private address
+cannot grant a private-client exemption. Normal checks use `REMOTE_ADDR`.
+Direct private clients without XFF keep their exemption.
 
-When enabled, `X-Forwarded-For` is honoured **only** if `REMOTE_ADDR` is in that list; otherwise the resolver falls back to `REMOTE_ADDR`.
+**Upgrade:** deployments that previously relied on unconditional XFF trust must
+populate this list. Keep `tx.wphard.trusted_proxies_enabled=1` (the default). An
+explicit value of `0` retains legacy unconditional trust and is unsafe on a
+directly reachable server. If the web server rewrites `REMOTE_ADDR` itself,
+configure and secure that trust boundary there as well.
 
 > **Scope:** the private-IP whitelist only applies to the xmlrpc / wp-json / wp-cron rules (`9522102`, `9522107`, `9522111`, `9522207`). The user-enumeration rule (`9522104`), the direct-PHP-access rule (`9522200`), sensitive-files (`9522202`/`9522206`), info-leak (`9522100`), VCS-dotfile (`9522113`), and the audit-round-4 protections (`9522112`-`9522122`, `9522701`-`9522703`) apply to **all** clients regardless of source IP — they are flagging request shapes that no legitimate caller (internal or external) produces.
 
@@ -132,15 +141,15 @@ Include /path/to/plugins/wordpress-hardening-ratelimit.conf
 > **⚠️ Collection growth (DoS):** `initcol:ip=%{client_ip}` creates one
 > SDBM entry per resolved IP under `SecDataDir`. The plugin does NOT set
 > `SecCollectionTimeout` (the CRS plugin convention says only operators
-> may set it). On a server with direct internet exposure — i.e. where
-> trusted-proxy pinning is OFF — an attacker rotating source IPs (easy
-> over IPv6) can grow the collection file unboundedly. Operators MUST:
+> may set it). On a server with direct internet exposure, an attacker
+> rotating real source IPs (easy over IPv6) can grow the collection file
+> unboundedly. Disabling proxy pinning also permits forged XFF keys. Operators MUST:
 >
 > 1. Set `SecCollectionTimeout 300` (or higher) in the engine config.
 > 2. Place `SecDataDir` on a partition that can absorb growth or has a
 >    housekeeping cron.
-> 3. Enable [Trusted-Proxy Pinning](#trusted-proxy-pinning) on direct-
->    exposure servers so the counter keys on a vetted upstream.
+> 3. Keep [Trusted-Proxy Pinning](#trusted-proxy-pinning) enabled so the
+>    counter uses the peer or a client forwarded by a listed proxy.
 
 **Default settings:**
 - **Enabled by default** (`ratelimit_login_enabled`)
@@ -224,7 +233,9 @@ Blocks **all requests** (not just login attempts) from IP addresses listed in `p
 - **Disabled by default** (`ip_reputation_enabled=0`)
 - Data file ships with `192.0.2.0/24` (RFC 5737 documentation range used for CI tests) — replace with real entries in production
 
-> **Security note:** `X-Forwarded-For` is trusted by default. For deployments without a proxy in front, enable [trusted-proxy pinning](#trusted-proxy-pinning) before turning this feature on, or attackers can rotate XFF to evade the blocklist.
+> **Security note:** keep [trusted-proxy pinning](#trusted-proxy-pinning)
+> enabled. List only proxies that overwrite XFF so clients cannot rotate a
+> forged header to evade the blocklist.
 
 **To enable:**
 1. Uncomment the SecAction in `plugins/wordpress-hardening-config.conf`:
@@ -252,7 +263,7 @@ The plugin uses the allocated range **9522000-9522999**. Major buckets:
 | `9522010`-`9522055` | Config-knob `SecAction`s (commented examples in `config.conf`) |
 | `9522012`-`9522050` | Default-value setters (in `before.conf`, IPv6/proxy series) |
 | `9522071`-`9522081` | Default-value setters (in `before.conf`, audit-round-4 protections) |
-| `9522060`-`9522065` | Client-IP resolver (`REMOTE_ADDR`, XFF v4/v6, trusted-proxy gate, `client_is_private`) |
+| `9522060`-`9522066` | Client-IP resolver (`REMOTE_ADDR`, XFF v4/v6, trusted-proxy gate, `client_is_private`) |
 | `9522099` | Plugin kill-switch (removes 9522000-9522999 except itself) |
 | `9522101`-`9522111` | xmlrpc / user-enumeration / REST API / admin-login / wp-cron blocks |
 | `9522150`-`9522155` | Per-group whitelist (uses `client_is_private`) |

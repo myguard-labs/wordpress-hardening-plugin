@@ -1,6 +1,6 @@
 # Trusted upstream proxies (CIDR notation, one per line).
-# Used by rule 9522064 (@ipMatchFromFile) to decide whether to honour
-# X-Forwarded-For. Only takes effect when tx.wphard.trusted_proxies_enabled=1.
+# Used by rule 9522065 (@ipMatchFromFile) to decide whether to honour
+# X-Forwarded-For. Enabled by default; the empty list trusts no peers.
 #
 # Populate with the real public-facing IPs of your CDN / load balancer / proxy:
 #

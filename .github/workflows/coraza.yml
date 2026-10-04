@@ -60,6 +60,11 @@ jobs:
               ../../plugins/wordpress-hardening-after.conf
           done
 
+      - name: Verify default XFF trust and configured proxies
+        run: |
+          python3 ci/check_xff_trust.py coraza \
+            --probe "$RUNNER_TEMP/coraza-probe"
+
       - name: Guard — ratelimit file must stay outside the loader globs
         run: |
           # The Coraza-incompatible rate-limit rules live in an opt-in file

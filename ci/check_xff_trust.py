@@ -1,0 +1,319 @@
+"""Exercise shipped XFF defaults and proxy pinning on real WAF engines.
+
+The Docker lane uses a benchmark-network peer (not RFC1918), so falling back
+from XFF cannot accidentally pass because the test runner itself is private.
+No CI legacy-XFF override is loaded. All resources are disposable.
+"""
+
+import argparse
+import ipaddress
+import json
+import os
+import shutil
+import subprocess
+import tempfile
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+IMAGES = {
+    "apache": "owasp/modsecurity-crs:4.26.0-apache-202605200705",
+    "nginx": "owasp/modsecurity-crs:4.26.0-nginx-202605200705",
+}
+# name, header, whether a trusted first hop is private
+CASES = [
+    ("no-header", None, False),
+    ("spoof-loopback", "127.0.0.1", True),
+    ("spoof-rfc1918", "10.20.30.40", True),
+    ("spoof-ula", "fc00::1", True),
+    ("spoof-ipv6-loopback", "::1", True),
+    ("spoof-mapped", "::ffff:10.0.0.1", True),
+    ("public", "8.8.8.8", False),
+    ("private-first", "10.0.0.1, 8.8.8.8", True),
+    ("public-first", "8.8.8.8, 10.0.0.1", False),
+    ("private-boundary", "172.31.255.255", True),
+    ("public-boundary", "172.32.0.1", False),
+    ("malformed-v4", "127.0.0.1junk", False),
+    ("malformed-v6", "::1junk", False),
+    ("invalid-octet", "999.0.0.1", False),
+    ("empty-first", ", 127.0.0.1", False),
+]
+
+
+def run(*args, **kwargs):
+    """Keep subprocess failures visible without using a shell."""
+    try:
+        return subprocess.check_output(args, text=True, **kwargs).strip()
+    except subprocess.CalledProcessError as error:
+        print(error.output, flush=True)
+        raise
+
+
+def stage(directory, mode, peer):
+    shutil.copytree(ROOT / "plugins", directory)
+    if peer.startswith("10."):
+        with (directory / "wordpress-hardening-ip-reputation.data").open("a") as data:
+            data.write("\n" + peer + "\n")
+        (directory / "ci-xff-probe-config.conf").write_text(
+            'SecRule REQUEST_URI "@streq /ip-reputation-probe" '
+            '"id:9902061,phase:1,pass,nolog,t:none,setvar:tx.wphard.ip_reputation_enabled=1"\n'
+        )
+    if mode != "default":
+        # An exact IP tests the peer boundary: untrusted is adjacent.
+        trusted = peer if mode == "trusted" else str(ipaddress.ip_address(peer) + 1)
+        (directory / "wordpress-hardening-trusted-proxies.data").write_text(
+            "# Trusted test peer\n" + trusted + "\n"
+        )
+
+
+def peer_cases(private_peer, mode):
+    # Private forwarding peers must never lend their exemption to public XFF.
+    if private_peer:
+        cases = [
+            ("private-peer-no-header", None, False),
+            ("private-peer-public-XFF", "8.8.8.8", False),
+            ("private-peer-private-XFF", "10.0.0.5", True),
+        ]
+        if mode != "trusted":
+            cases.extend(
+                [
+                    ("private-peer-empty-XFF", "", False),
+                    ("private-peer-malformed-XFF", "127.0.0.1junk", False),
+                ]
+            )
+        return cases
+    return CASES
+
+
+def reputation_cases(mode, peer):
+    cases = []
+    for name, header in [
+        ("private-peer-reputation-public-XFF", "8.8.8.8"),
+        ("private-peer-reputation-no-header", None),
+    ]:
+        blocked = mode != "trusted" and header is not None
+        cases.append(
+            {
+                "name": mode + ":" + name,
+                "uri": "/ip-reputation-probe",
+                "client_ip": peer,
+                "headers": {"X-Forwarded-For": header} if header else {},
+                "expect_ids": [9522603] if blocked else [],
+                "no_expect_ids": [9522601] if blocked else [9522603],
+                "expect_interruption": blocked,
+            }
+        )
+    return cases
+
+
+def coraza(directory, probe, private_peer=False):
+    peer = "10.254.0.1" if private_peer else "198.18.0.1"
+    for mode in ("default", "trusted", "untrusted"):
+        plugins = directory / mode
+        stage(plugins, mode, peer)
+        setup = directory / "setup.conf"
+        setup.write_text('SecDefaultAction "phase:2,log,deny,status:403"\n')
+        cases = []
+        for name, header, private in peer_cases(private_peer, mode):
+            allowed = (mode == "trusted" and private) or (
+                private_peer and header is None
+            )
+            headers = {
+                "Host": "localhost",
+                "User-Agent": "XFF trust test",
+                "Accept": "*/*",
+            }
+            if header is not None:
+                headers["X-Forwarded-For"] = header
+            cases.append(
+                {
+                    "name": mode + ":" + name,
+                    "uri": "/xmlrpc.php",
+                    "client_ip": peer,
+                    "headers": headers,
+                    "expect_ids": [] if allowed else [9522102],
+                    "no_expect_ids": [9522102] if allowed else [],
+                    "expect_interruption": not allowed,
+                }
+            )
+        cases.append(
+            {
+                "name": mode + ":homepage",
+                "uri": "/",
+                "client_ip": peer,
+                "expect_interruption": False,
+                "no_expect_ids": [9522102],
+            }
+        )
+        cases.append(
+            {
+                "name": mode + ":direct-private-peer",
+                "uri": "/xmlrpc.php",
+                "client_ip": "10.0.0.1",
+                "expect_interruption": False,
+                "no_expect_ids": [9522102],
+            }
+        )
+        if private_peer:
+            cases.extend(reputation_cases(mode, peer))
+        fixture = directory / "transactions.json"
+        fixture.write_text(json.dumps(cases))
+        print(
+            run(
+                str(probe),
+                "-tx",
+                str(fixture),
+                str(setup),
+                "wordpress-hardening-config.conf",
+                *(["ci-xff-probe-config.conf"] if private_peer else []),
+                "wordpress-hardening-before.conf",
+                "wordpress-hardening-after.conf",
+                cwd=plugins,
+            )
+        )
+
+
+def check_http(engine, mode, url, server, private_peer):
+    """Assert real HTTP outcomes after the complete ruleset starts."""
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+    def status(path, header=None):
+        headers = {"User-Agent": "XFF trust test", "Accept": "*/*"}
+        if header is not None:
+            headers["X-Forwarded-For"] = header
+        request = urllib.request.Request(url + path, headers=headers)
+        try:
+            with opener.open(request, timeout=3) as response:
+                return response.status
+        except urllib.error.HTTPError as error:
+            return error.code
+
+    for _ in range(60):
+        if run("docker", "inspect", "-f", "{{.State.Running}}", server) != "true":
+            raise AssertionError(run("docker", "logs", server))
+        try:
+            if status("/") == 200:
+                break
+        except (urllib.error.URLError, TimeoutError):
+            pass
+        time.sleep(1)
+    else:
+        raise AssertionError(run("docker", "logs", server))
+    for case, header, private in peer_cases(private_peer, mode):
+        allowed = (mode == "trusted" and private) or (private_peer and header is None)
+        expected = 200 if allowed else 403
+        actual = status("/xmlrpc.php", header)
+        assert actual == expected, (
+            f"{engine}:{mode}:{case}: expected {expected}, got {actual}"
+        )
+        print(f"{engine}:{mode}:{case}: HTTP {actual}", flush=True)
+    if private_peer:
+        for case in reputation_cases(mode, "unused"):
+            actual = status(case["uri"], case["headers"].get("X-Forwarded-For"))
+            expected = 403 if case["expect_interruption"] else 200
+            assert actual == expected, (
+                f"{engine}:{case['name']}: expected {expected}, got {actual}"
+            )
+            print(f"{engine}:{case['name']}: HTTP {actual}", flush=True)
+    assert status("/") == 200, f"{engine}:{mode}:homepage blocked"
+    print(f"{engine}:{mode}:homepage: HTTP 200", flush=True)
+
+
+def docker(directory, engine, private_peer=False):
+    name = directory.parent.name.replace(".", "-") + "-" + directory.name
+    network = name + "-net"
+    containers = []
+    try:
+        # Use a small benchmark subnet; concurrent runs get distinct PID slots.
+        base = (
+            ipaddress.ip_address("10.254.0.0" if private_peer else "198.18.0.0")
+            + (os.getpid() % 8192) * 16
+        )
+        run("docker", "network", "create", "--subnet", str(base) + "/28", network)
+        peer = str(base + 1)  # host gateway, the directly-connected test peer
+        backend = name + "-backend"
+        containers.append(backend)
+        run(
+            "docker",
+            "run",
+            "-d",
+            "--rm",
+            "--name",
+            backend,
+            "--network",
+            network,
+            "-v",
+            str(ROOT / "tests/integration/backend/nginx.conf")
+            + ":/etc/nginx/nginx.conf:ro",
+            "nginx:alpine",
+        )
+        for mode in ("default", "trusted", "untrusted"):
+            plugins = directory / mode
+            stage(plugins, mode, peer)
+            server = name + "-" + mode
+            containers.append(server)
+            run(
+                "docker",
+                "run",
+                "-d",
+                "--name",
+                server,
+                "--network",
+                network,
+                "-e",
+                "BACKEND=http://" + backend + ":80",
+                "-e",
+                "PORT=8080",
+                "-e",
+                "MODSEC_RULE_ENGINE=On",
+                "-e",
+                "MODSEC_RESP_BODY_ACCESS=Off",
+                "-v",
+                str(plugins) + ":/etc/modsecurity.d/owasp-crs/plugins:ro",
+                IMAGES[engine],
+            )
+            address = run(
+                "docker",
+                "inspect",
+                "-f",
+                "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
+                server,
+            )
+            url = "http://" + address + ":8080"
+
+            check_http(engine, mode, url, server, private_peer)
+            run("docker", "rm", "-f", server)
+            containers.remove(server)
+    finally:
+        for container in reversed(containers):
+            subprocess.run(
+                ["docker", "rm", "-f", container], check=False, capture_output=True
+            )
+        subprocess.run(
+            ["docker", "network", "rm", network], check=False, capture_output=True
+        )
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("engine", choices=["coraza", *IMAGES])
+    parser.add_argument("--probe", type=Path)
+    args = parser.parse_args()
+    if args.engine == "coraza" and args.probe is None:
+        parser.error("coraza requires --probe")
+    with tempfile.TemporaryDirectory(prefix="wph-xff-") as temporary:
+        directory = Path(temporary)
+        directory.chmod(0o755)
+        for private_peer in (False, True):
+            lane = directory / ("private-peer" if private_peer else "public-peer")
+            lane.mkdir()
+            if args.engine == "coraza":
+                coraza(lane, args.probe.resolve(), private_peer)
+            else:
+                docker(lane, args.engine, private_peer)
+
+
+if __name__ == "__main__":
+    main()

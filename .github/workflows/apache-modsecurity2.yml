@@ -99,6 +99,9 @@ jobs:
           ./ftw run   -d tests/regression --config tests/integration/.ftw.yml \
             --show-failures-only
 
+      - name: Verify default XFF trust and configured proxies
+        run: python3 ci/check_xff_trust.py apache
+
       - name: Dump logs on failure
         if: failure()
         run: |
