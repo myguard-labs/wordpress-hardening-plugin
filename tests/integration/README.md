@@ -91,8 +91,9 @@ differ in determinism:
   / encoding / header casing that **must still be blocked** (guards against
   bypassable rules; includes the regression for the `t:lowercase` GeoIP fix).
 - **`false-positives.yaml`** — legitimate WordPress traffic (homepage,
-  admin-ajax, wp-cron, REST sub-paths, assets, whitelisted login) that **must
-  NOT** trip any `9522xxx` rule (guards against over-blocking).
+  admin-ajax, wp-cron, REST sub-paths, assets, whitelisted login) that must
+  not trip any blocking `9522xxx` rule. Six sensitive-path cases require the
+  passive BREACH audit marker `9522121` and reject every other `9522xxx` ID.
 
 Apache only, for the same reason the nginx job is parse/load only: the corpus
 needs a deterministic pass/fail and libmodsecurity3 v3 cannot provide one. The
