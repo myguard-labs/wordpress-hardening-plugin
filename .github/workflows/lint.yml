@@ -21,6 +21,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Sensitive file boundary unit tests
+        run: python3 -B -m unittest discover -s ci -p 'test_*.py'
+
       - name: Check @pmFromFile references
         run: |
           # Validate that all @pmFromFile references point to existing .data files

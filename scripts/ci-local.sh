@@ -23,6 +23,13 @@ else
   err "release publication contract failed"
 fi
 
+note "sensitive file boundary unit tests"
+if python3 -B -m unittest discover -s ci -p 'test_*.py'; then
+  ok "sensitive file boundary unit tests"
+else
+  err "sensitive file boundary unit tests failed"
+fi
+
 # ── lint.yml: @pmFromFile references resolve ────────────────────────────────
 note "pmFromFile references"
 while read -r line; do

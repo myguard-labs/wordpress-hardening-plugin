@@ -338,3 +338,58 @@ tests:
           uri: /wp-content/debug.log/extra
         output:
           log_contains: id "9522202"
+  - test_title: 9522202-29
+    desc: sensitive old config backup
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-old.php.save
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-30
+    desc: sensitive staging config backup
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-staging.php.save
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-31
+    desc: benign dotted nginx tutorial permalink
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /nginx.conf.tutorial/
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-32
+    desc: benign directory backup lookalike
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-content/mu-plugins.bak-guide/
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-33
+    desc: benign config backup lookalike
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config-staging.php.save-guide/
+        output:
+          no_log_contains: id "9522202"

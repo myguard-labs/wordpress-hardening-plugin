@@ -49,7 +49,6 @@ class TestSensitiveFileBoundaries(unittest.TestCase):
                 paths = (token, token + '.bak', token + '/extra')
             for path in paths:
                 with self.subTest(token=token, path=path):
-                    self.assertIn(token, path)  # Original @pmFromFile.
                     self.assertTrue(self.matches(path), path)
 
     def test_each_token_nearby_slug_stays_accessible(self):
@@ -68,6 +67,8 @@ class TestSensitiveFileBoundaries(unittest.TestCase):
     def test_sensitive_variants(self):
         for path in ('/wp-config-sample.php', '/wp-config.php.save',
                      '/wp-config-backup.php', '/blog/wp-config.php',
+                     '/wp-config-old.php.save',
+                     '/wp-config-staging.php.save',
                      '/blog/nginx.conf', '/nginx.conf.bak',
                      '/wp-admin/install.php.bak', '/wp-admin/install.php5',
                      '/wp-content/mu-plugins/test.php'):
@@ -76,7 +77,9 @@ class TestSensitiveFileBoundaries(unittest.TestCase):
 
     def test_permalinks_and_lookalikes(self):
         for path in ('/blog/wp-config-guide/', '/nginx.conf-tutorial/',
+                     '/nginx.conf.tutorial/',
                      '/wp-content/mu-plugins-info/', '/wp-config-staging.php',
+                     '/wp-content/mu-plugins.bak-guide/',
                      '/wp-content/upgrade-guide/', '/blog/license.txt-guide/'):
             with self.subTest(path=path):
                 self.assertFalse(self.matches(path))
