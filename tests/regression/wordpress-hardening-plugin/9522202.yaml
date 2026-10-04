@@ -6,13 +6,14 @@ meta:
   name: 9522202.yaml
 tests:
   - test_title: 9522202-1
-    desc: direct access to sensitive file
+    desc: test for no direct access to files/dirs in wordpress-hardening-files.data
     stages:
       - input:
           dest_addr: 127.0.0.1
           headers:
             Host: localhost
             User-Agent: OWASP CRS
+            Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
           port: 80
           method: GET
           uri: /readme.txt
@@ -21,13 +22,14 @@ tests:
         output:
           log_contains: id "9522202"
   - test_title: 9522202-2
-    desc: direct access to sensitive file
+    desc: test for no direct access to files/dirs in wordpress-hardening-files.data
     stages:
       - input:
           dest_addr: 127.0.0.1
           headers:
             Host: localhost
             User-Agent: OWASP CRS
+            Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
           port: 80
           method: GET
           uri: /wp-config.php
@@ -36,13 +38,14 @@ tests:
         output:
           log_contains: id "9522202"
   - test_title: 9522202-3
-    desc: direct access to sensitive file
+    desc: test for no direct access to files/dirs in wordpress-hardening-files.data
     stages:
       - input:
           dest_addr: 127.0.0.1
           headers:
             Host: localhost
             User-Agent: OWASP CRS
+            Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
           port: 80
           method: GET
           uri: /wp-config-sample.php
@@ -51,13 +54,14 @@ tests:
         output:
           log_contains: id "9522202"
   - test_title: 9522202-4
-    desc: direct access to sensitive file
+    desc: test for no direct access to files/dirs in wordpress-hardening-files.data
     stages:
       - input:
           dest_addr: 127.0.0.1
           headers:
             Host: localhost
             User-Agent: OWASP CRS
+            Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
           port: 80
           method: GET
           uri: /wp-content/wp-rocket-config/dynamic-lists.json
@@ -66,13 +70,14 @@ tests:
         output:
           log_contains: id "9522202"
   - test_title: 9522202-5
-    desc: direct access to sensitive file
+    desc: test for no direct access to files/dirs in wordpress-hardening-files.data
     stages:
       - input:
           dest_addr: 127.0.0.1
           headers:
             Host: localhost
             User-Agent: OWASP CRS
+            Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
           port: 80
           method: GET
           uri: /wp-content/mu-plugins/test.php

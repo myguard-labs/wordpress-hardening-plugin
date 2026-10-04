@@ -39,6 +39,7 @@ class TestSensitiveFileBoundaries(unittest.TestCase):
             self.pattern.search(path))
 
     def test_every_data_token_remains_protected(self):
+        self.assertTrue(self.tokens, 'sensitive-file data contains no tokens')
         for token in self.tokens:
             with self.subTest(token=token):
                 self.assertTrue(self.matches(token), token)
