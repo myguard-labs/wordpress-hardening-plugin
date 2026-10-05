@@ -28,6 +28,10 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/plugin-lint-venv"
           "$RUNNER_TEMP/plugin-lint-venv/bin/python" -m pip install \
             --disable-pip-version-check PyYAML==6.0.2
+          "$RUNNER_TEMP/plugin-lint-venv/bin/python" \
+            ci/check_ftw_positives.py \
+            tests/regression/wordpress-hardening-plugin \
+            tests/integration/.ftw.yml
           "$RUNNER_TEMP/plugin-lint-venv/bin/python" -B -m unittest \
             discover -s ci -p 'test_*.py'
 

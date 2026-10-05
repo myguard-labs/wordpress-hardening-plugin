@@ -31,6 +31,15 @@ else
 fi
 
 note "sensitive file boundary unit tests"
+if python3 ci/check_ftw_positives.py \
+    tests/regression/wordpress-hardening-plugin tests/integration/.ftw.yml; then
+  ok "go-ftw positive coverage"
+else
+  if ! python3 -c 'import yaml' 2>/dev/null; then
+    err "PyYAML is required for go-ftw positive coverage; install PyYAML==6.0.2 for python3"
+  fi
+  err "go-ftw positive coverage failed"
+fi
 if python3 -B -m unittest discover -s ci -p 'test_*.py'; then
   ok "sensitive file boundary unit tests"
 else

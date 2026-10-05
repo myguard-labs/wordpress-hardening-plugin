@@ -13,7 +13,9 @@ tests:
           headers: {Host: localhost, User-Agent: OWASP CRS}
           port: 80
           method: GET
-          uri: /wp-admin/load-scripts.php?load=jquery,jquery-ui-core,jquery-ui-widget,jquery-ui-mouse,jquery-ui-sortable,wp-pointer,wp-util,wp-a11y,wp-i18n
+          uri: "/wp-admin/load-scripts.php?load=jquery,jquery-ui-core,\
+            jquery-ui-widget,jquery-ui-mouse,jquery-ui-sortable,\
+            wp-pointer,wp-util,wp-a11y,wp-i18n"
         output:
           log_contains: id "9522112"
   - test_title: 9522112-2
@@ -24,7 +26,9 @@ tests:
           headers: {Host: localhost, User-Agent: OWASP CRS}
           port: 80
           method: GET
-          uri: /wp-admin/load-styles.php?load[]=common,forms,admin-menu,dashboard,list-tables,edit,revisions,media,buttons,wp-jquery-ui-dialog,thickbox,thumbnail
+          uri: "/wp-admin/load-styles.php?load[]=common,forms,admin-menu,\
+            dashboard,list-tables,edit,revisions,media,buttons,\
+            wp-jquery-ui-dialog,thickbox,thumbnail"
         output:
           log_contains: id "9522112"
   - test_title: 9522112-3
@@ -110,5 +114,29 @@ tests:
           port: 80
           method: GET
           uri: /wp-admin/load-scripts.php?load%5B%5D=jquery,common
+        output:
+          no_log_contains: id "9522112"
+  - test_title: 9522112-96
+    desc: long mixed-case percent-encoded load[] key is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: "/wp-admin/load-scripts.php?load%5b%5D=jquery,jquery-ui-core,\
+            jquery-ui-widget,jquery-ui-mouse,jquery-ui-sortable,\
+            wp-pointer,wp-util,wp-a11y,wp-i18n"
+        output:
+          log_contains: id "9522112"
+  - test_title: 9522112-97
+    desc: short mixed-case encoded load[] value stays below threshold
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/load-scripts.php?load%5b%5D=jquery,common
         output:
           no_log_contains: id "9522112"
