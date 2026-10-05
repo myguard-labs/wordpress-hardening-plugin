@@ -2,7 +2,7 @@
   {
     "name": "9522112-90",
     "method": "GET",
-    "uri": "/wp-admin/load-scripts.php?load=jquery,jquery-ui-core,jquery-ui-widget,jquery-ui-mouse,jquery-ui-sortable,wp-pointer,wp-util,wp-a11y,wp-i18n",
+    "uri": "/wp-admin/load-styles.php?load=jquery,jquery-ui-core,jquery-ui-widget,jquery-ui-mouse,jquery-ui-sortable,wp-pointer,wp-util,wp-a11y,wp-i18n",
     "headers": {
       "Host": "localhost",
       "User-Agent": "OWASP CRS"
@@ -50,7 +50,7 @@
   {
     "name": "9522113-90",
     "method": "GET",
-    "uri": "/.env",
+    "uri": "/.hg/hgrc",
     "headers": {
       "Host": "localhost",
       "User-Agent": "OWASP CRS"
@@ -98,7 +98,7 @@
   {
     "name": "9522114-90",
     "method": "GET",
-    "uri": "/wp-config.php.save",
+    "uri": "/wp-config.php.backup",
     "headers": {
       "Host": "localhost",
       "User-Agent": "OWASP CRS"
@@ -146,7 +146,7 @@
   {
     "name": "9522115-90",
     "method": "GET",
-    "uri": "/wp-content/plugins/akismet/readme.txt",
+    "uri": "/wp-content/themes/twentytwentyfour/readme.md",
     "headers": {
       "Host": "localhost",
       "User-Agent": "OWASP CRS"
@@ -503,6 +503,96 @@
     },
     "no_expect_ids": [
       9522118
+    ]
+  },
+  {
+    "name": "9522112-94",
+    "method": "GET",
+    "uri": "/wp-admin/load-scripts.php?load%5B%5D=jquery,jquery-ui-core,jquery-ui-widget,jquery-ui-mouse,jquery-ui-sortable,wp-pointer,wp-util,wp-a11y,wp-i18n",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522112
+    ]
+  },
+  {
+    "name": "9522112-95",
+    "method": "GET",
+    "uri": "/wp-admin/load-scripts.php?load%5B%5D=jquery,common",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522112
+    ]
+  },
+  {
+    "name": "9522100-raw",
+    "method": "GET",
+    "uri": "/readme.html",
+    "headers": {
+      "Host": "localhost"
+    },
+    "expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-encoded",
+    "method": "GET",
+    "uri": "/r%65adme.html",
+    "headers": {
+      "Host": "localhost"
+    },
+    "expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-double",
+    "method": "GET",
+    "uri": "/r%2565adme.html",
+    "headers": {
+      "Host": "localhost"
+    },
+    "no_expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-query",
+    "method": "GET",
+    "uri": "/wp-content/debug%2elog?x=1",
+    "headers": {
+      "Host": "localhost"
+    },
+    "expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-absolute",
+    "method": "GET",
+    "uri": "http://localhost/r%65adme.html",
+    "headers": {
+      "Host": "localhost"
+    },
+    "expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-absolute-double",
+    "method": "GET",
+    "uri": "http://localhost/r%2565adme.html",
+    "headers": {
+      "Host": "localhost"
+    },
+    "no_expect_ids": [
+      9522100
     ]
   }
 ]

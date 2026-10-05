@@ -26,7 +26,7 @@ jobs:
     runs-on: [self-hosted, builder02, lxc]
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
 
@@ -60,6 +60,13 @@ jobs:
               ../../plugins/wordpress-hardening-before.conf \
               ../../plugins/wordpress-hardening-after.conf
           done
+
+          # The enabled CI fixture must not hide the shipped readme default.
+          "$RUNNER_TEMP/coraza-probe" \
+            -tx ../../ci/urldecode_default_coraza.json \
+            ../../plugins/wordpress-hardening-config.conf \
+            ../../plugins/wordpress-hardening-before.conf \
+            ../../plugins/wordpress-hardening-after.conf
 
       - name: Verify default XFF trust and configured proxies
         run: |

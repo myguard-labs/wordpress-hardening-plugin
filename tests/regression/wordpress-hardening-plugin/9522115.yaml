@@ -19,14 +19,14 @@ tests:
         output:
           log_contains: id "9522115"
   - test_title: 9522115-90
-    desc: raw-path-control for raw URI single-decode boundary
+    desc: raw theme readme.md path is blocked when the CI feature is enabled
     stages:
       - input:
           dest_addr: 127.0.0.1
           headers: {Host: localhost, User-Agent: OWASP CRS}
           port: 80
           method: GET
-          uri: /wp-content/plugins/akismet/readme.txt
+          uri: /wp-content/themes/twentytwentyfour/readme.md
         output:
           log_contains: id "9522115"
   - test_title: 9522115-91

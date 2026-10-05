@@ -72,14 +72,14 @@ tests:
         output:
           no_log_contains: id "9522113"
   - test_title: 9522113-90
-    desc: raw-path-control for raw URI single-decode boundary
+    desc: raw Mercurial metadata path is blocked
     stages:
       - input:
           dest_addr: 127.0.0.1
           headers: {Host: localhost, User-Agent: OWASP CRS}
           port: 80
           method: GET
-          uri: /.env
+          uri: /.hg/hgrc
         output:
           log_contains: id "9522113"
   - test_title: 9522113-91

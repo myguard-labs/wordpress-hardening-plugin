@@ -61,14 +61,14 @@ tests:
         output:
           no_log_contains: id "9522114"
   - test_title: 9522114-90
-    desc: raw-path-control for raw URI single-decode boundary
+    desc: raw wp-config backup suffix is blocked
     stages:
       - input:
           dest_addr: 127.0.0.1
           headers: {Host: localhost, User-Agent: OWASP CRS}
           port: 80
           method: GET
-          uri: /wp-config.php.save
+          uri: /wp-config.php.backup
         output:
           log_contains: id "9522114"
   - test_title: 9522114-91
