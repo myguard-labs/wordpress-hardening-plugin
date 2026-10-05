@@ -66,6 +66,12 @@ CASES = [
     ("spoof-ipv6-loopback", "::1", True),
     ("spoof-mapped", "::ffff:10.0.0.1", True),
     ("spoof-bracketed-v6", "[::1]", True),
+    ("spoof-v4-port", "127.0.0.1:8080", True),
+    ("spoof-bracketed-v6-port", "[::1]:443", True),
+    ("v4-port-minimum", "127.0.0.1:1", True),
+    ("v4-port-maximum", "127.0.0.1:65535", True),
+    ("v6-port-minimum", "[::1]:1", True),
+    ("v6-port-maximum", "[::1]:65535", True),
     ("spoof-v6-full", "0:0:0:0:0:0:0:1", True),
     ("spoof-v6-full-padded", "0000:0000:0000:0000:0000:0000:0000:0001", True),
     ("spoof-v6-full-bracketed", "[0:0:0:0:0:0:0:1]", True),
@@ -77,6 +83,15 @@ CASES = [
     ("private-boundary", "172.31.255.255", True),
     ("public-boundary", "172.32.0.1", False),
     ("malformed-v4", "127.0.0.1junk", False),
+    ("malformed-v4-port-overflow", "127.0.0.1:65536", False),
+    ("malformed-v4-port-junk", "127.0.0.1:80junk", False),
+    ("malformed-v4-port-zero", "127.0.0.1:0", False),
+    ("malformed-v4-port-leading-zero", "127.0.0.1:080", False),
+    ("malformed-v6-port-overflow", "[::1]:65536", False),
+    ("malformed-v6-port-junk", "[::1]:80junk", False),
+    ("malformed-v6-port-zero", "[::1]:0", False),
+    ("malformed-v6-port-leading-zero", "[::1]:080", False),
+    ("malformed-v6-unbracketed-port", "::1:12345", False),
     ("malformed-v6", "::1junk", False),
     ("invalid-octet", "999.0.0.1", False),
     ("empty-first", ", 127.0.0.1", False),
@@ -159,28 +174,44 @@ def address_corpus():
 
 
 def expected_address(header):
-    """Standards oracle for our first-hop contract, without zones or ports."""
+    """Standards oracle for first-hop IPs and explicit, bounded ports."""
     token = header.split(",", 1)[0].strip()
-    if token.startswith("[") and token.endswith("]"):
-        token = token[1:-1]
-        if ":" not in token:
+    if token.startswith("["):
+        closing = token.find("]")
+        if closing < 0:
             return None
-    if "%" in token:
+        address, suffix = token[1:closing], token[closing + 1 :]
+    elif token.count(":") == 1:
+        address, separator, port = token.partition(":")
+        suffix = separator + port
+    else:
+        address, suffix = token, ""
+    if suffix and (
+        not suffix.startswith(":")
+        or not re.fullmatch(r"[1-9][0-9]{0,4}", suffix[1:])
+        or int(suffix[1:]) > 65535
+    ):
+        return None
+    if "%" in address:
         return None
     try:
-        ipaddress.ip_address(token)
+        parsed = ipaddress.ip_address(address)
     except ValueError:
         return None
-    return token
+    if token.startswith("[") and not isinstance(parsed, ipaddress.IPv6Address):
+        return None
+    return address
 
 
 def parser_cases():
     # Run the same differential corpus on PCRE/PCRE2 and RE2, not just Python re.
     headers = set(address_corpus())
     for header in address_corpus():
+        headers.add("[" + header + "]:443")
         if expected_address(header) is not None and ":" in header and "[" not in header:
             headers.update({"[" + header + "]", header + " , 8.8.8.8"})
     headers.update({"8.8.8.8", "127.0.0.1", "%31%30.0.0.1", "fc00%3a%3a1"})
+    headers.update(header for _, header, _ in CASES if header is not None)
     for index, header in enumerate(sorted(headers)):
         yield "parser-" + str(index), header, expected_address(header)
 
@@ -242,6 +273,10 @@ def peer_cases(private_peer):
             ("private-peer-no-header", None, False),
             ("private-peer-public-XFF", "8.8.8.8", False),
             ("private-peer-private-XFF", "10.0.0.5", True),
+            ("private-peer-v4-port-XFF", "10.0.0.5:8080", True),
+            ("private-peer-v6-port-XFF", "[::1]:443", True),
+            ("private-peer-malformed-v4-port-XFF", "10.0.0.5:65536", False),
+            ("private-peer-malformed-v6-port-XFF", "[::1]:65536", False),
         ]
         cases.extend(
             [
@@ -295,9 +330,15 @@ def reputation_cases(mode, peer):
 def parser_ids(mode, name, header):
     """Require a parsed full address and reject malformed first hops in trusted modes."""
     if mode not in ("trusted", "legacy"):
-        return [], []
-    expected = [9522062] if name == "spoof-v6-full" else []
+        return [], [9522068] if name == "spoof-bracketed-v6-port" else []
+    expected = []
+    if name == "spoof-v6-full":
+        expected.append(9522062)
+    if name == "spoof-bracketed-v6-port":
+        expected.append(9522068)
     forbidden = [9522062] if header in MALFORMED_IPV6 else []
+    if name.startswith("malformed-v6-port"):
+        forbidden.append(9522068)
     return expected, forbidden
 
 
