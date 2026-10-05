@@ -1,0 +1,908 @@
+[
+  {
+    "name": "9522112-90",
+    "method": "GET",
+    "uri": "/wp-admin/load-styles.php?load=jquery,jquery-ui-core,jquery-ui-widget,jquery-ui-mouse,jquery-ui-sortable,wp-pointer,wp-util,wp-a11y,wp-i18n",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522112
+    ]
+  },
+  {
+    "name": "9522112-91",
+    "method": "GET",
+    "uri": "/wp-admin/load-scr%69pts.php?load=jquery,jquery-ui-core,jquery-ui-widget,jquery-ui-mouse,jquery-ui-sortable,wp-pointer,wp-util,wp-a11y,wp-i18n",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522112
+    ]
+  },
+  {
+    "name": "9522112-92",
+    "method": "GET",
+    "uri": "/wp-admin/load-scr%69pts.php?load=jquery,common",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522112
+    ]
+  },
+  {
+    "name": "9522112-93",
+    "method": "GET",
+    "uri": "/wp-admin/load-scr%2569pts.php?load=jquery,jquery-ui-core,jquery-ui-widget,jquery-ui-mouse,jquery-ui-sortable,wp-pointer,wp-util,wp-a11y,wp-i18n",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522112
+    ]
+  },
+  {
+    "name": "9522113-90",
+    "method": "GET",
+    "uri": "/.hg/hgrc",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522113
+    ]
+  },
+  {
+    "name": "9522113-91",
+    "method": "GET",
+    "uri": "/%2eenv",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522113
+    ]
+  },
+  {
+    "name": "9522113-92",
+    "method": "GET",
+    "uri": "/%2eenv-guide",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522113
+    ]
+  },
+  {
+    "name": "9522113-93",
+    "method": "GET",
+    "uri": "/%252eenv",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522113
+    ]
+  },
+  {
+    "name": "9522114-90",
+    "method": "GET",
+    "uri": "/wp-config.php.backup",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522114
+    ]
+  },
+  {
+    "name": "9522114-91",
+    "method": "GET",
+    "uri": "/wp-config.php.s%61ve",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522114
+    ]
+  },
+  {
+    "name": "9522114-92",
+    "method": "GET",
+    "uri": "/wp-config.php.s%61ve-guide",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522114
+    ]
+  },
+  {
+    "name": "9522114-93",
+    "method": "GET",
+    "uri": "/wp-config.php.s%2561ve",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522114
+    ]
+  },
+  {
+    "name": "9522115-90",
+    "method": "GET",
+    "uri": "/wp-content/themes/twentytwentyfour/readme.md",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522115
+    ]
+  },
+  {
+    "name": "9522115-91",
+    "method": "GET",
+    "uri": "/wp-content/plugins/akismet/readm%65.txt",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522115
+    ]
+  },
+  {
+    "name": "9522115-92",
+    "method": "GET",
+    "uri": "/wp-content/plugins/akismet/readm%65.txt-guide",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522115
+    ]
+  },
+  {
+    "name": "9522115-93",
+    "method": "GET",
+    "uri": "/wp-content/plugins/akismet/readm%2565.txt",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522115
+    ]
+  },
+  {
+    "name": "9522117-90",
+    "method": "POST",
+    "uri": "/wp-json/sure-triggers/v1/connection/create-wp-connection",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "data": "{}\n",
+    "expect_ids": [
+      9522117
+    ]
+  },
+  {
+    "name": "9522117-91",
+    "method": "POST",
+    "uri": "/wp-json/sure-tr%69ggers/v1/connection/create-wp-connection",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "data": "{}\n",
+    "expect_ids": [
+      9522117
+    ]
+  },
+  {
+    "name": "9522117-92",
+    "method": "POST",
+    "uri": "/wp-json/sure-tr%69ggers/v2/health",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "data": "{}\n",
+    "no_expect_ids": [
+      9522117
+    ]
+  },
+  {
+    "name": "9522117-93",
+    "method": "POST",
+    "uri": "/wp-json/sure-tr%2569ggers/v1/connection/create-wp-connection",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "data": "{}\n",
+    "no_expect_ids": [
+      9522117
+    ]
+  },
+  {
+    "name": "9522118-90",
+    "method": "POST",
+    "uri": "/wp-json/bricks/v1/render_element",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "data": "{}\n",
+    "expect_ids": [
+      9522118
+    ]
+  },
+  {
+    "name": "9522118-91",
+    "method": "POST",
+    "uri": "/wp-json/br%69cks/v1/render_element",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "data": "{}\n",
+    "expect_ids": [
+      9522118
+    ]
+  },
+  {
+    "name": "9522118-92",
+    "method": "POST",
+    "uri": "/wp-json/br%69cks/v2/render_element",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "data": "{}\n",
+    "no_expect_ids": [
+      9522118
+    ]
+  },
+  {
+    "name": "9522118-93",
+    "method": "POST",
+    "uri": "/wp-json/br%2569cks/v1/render_element",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "data": "{}\n",
+    "no_expect_ids": [
+      9522118
+    ]
+  },
+  {
+    "name": "9522119-90",
+    "method": "PUT",
+    "uri": "/wp-login.php",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522119
+    ]
+  },
+  {
+    "name": "9522119-91",
+    "method": "PUT",
+    "uri": "/wp-log%69n.php",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522119
+    ]
+  },
+  {
+    "name": "9522119-92",
+    "method": "TRACE",
+    "uri": "/about%2ehtml",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522119
+    ]
+  },
+  {
+    "name": "9522119-93",
+    "method": "TRACE",
+    "uri": "/wp-log%2569n.php",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522119
+    ]
+  },
+  {
+    "name": "9522120-90",
+    "method": "GET",
+    "uri": "/wp-content/plugins/timthumb.php",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-91",
+    "method": "GET",
+    "uri": "/wp-content/plugins/timth%75mb.php",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-92",
+    "method": "GET",
+    "uri": "/wp-content/plugins/timth%75mb.txt",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-93",
+    "method": "GET",
+    "uri": "/wp-content/plugins/timth%2575mb.php",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-94-authority",
+    "method": "GET",
+    "uri": "http://timthumb.php.example/",
+    "headers": {
+      "Host": "timthumb.php.example",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-95-absolute-path",
+    "method": "GET",
+    "uri": "http://example.test/wp-content/plugins/timth%75mb.php",
+    "headers": {
+      "Host": "example.test",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-96-absolute-query",
+    "method": "GET",
+    "uri": "http://example.test/installer.php?dup-uninstall",
+    "headers": {
+      "Host": "example.test",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-97-absolute-double-encoded",
+    "method": "GET",
+    "uri": "http://example.test/wp-content/plugins/timth%2575mb.php",
+    "headers": {
+      "Host": "example.test",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-98-benign-query-timthumb",
+    "method": "GET",
+    "uri": "/search?q=timthumb.php",
+    "headers": {
+      "Host": "example.test",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-99-benign-query-symposium",
+    "method": "GET",
+    "uri": "/out?to=/wp-symposium/",
+    "headers": {
+      "Host": "example.test",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-100-revslider-action",
+    "method": "GET",
+    "uri": "/wp-admin/admin-ajax.php?action=revslider_show_image&img=../wp-config.php",
+    "headers": {
+      "Host": "example.test",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-101-benign-query-revslider",
+    "method": "GET",
+    "uri": "/search?q=revslider_show_image",
+    "headers": {
+      "Host": "example.test",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-102-query-traversal-plain",
+    "method": "GET",
+    "uri": "/redirect?to=../../timthumb.php",
+    "headers": {
+      "Host": "example.test",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-103-query-traversal-encoded",
+    "method": "GET",
+    "uri": "/redirect?to=%2e%2e/%2e%2e/timthumb.php",
+    "headers": {
+      "Host": "example.test",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-104-mailpoet-query-only",
+    "uri": "/mailpoet/?q=wysija-captcha",
+    "headers": {
+      "Host": "example.test"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-105-file-manager-query-only",
+    "uri": "/wp-file-manager/?to=connector.minimal.php",
+    "headers": {
+      "Host": "example.test"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-106-dup-uninstall-value",
+    "uri": "/installer.php?dup-uninstall=1",
+    "headers": {
+      "Host": "example.test"
+    },
+    "expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-107-dup-uninstall-later",
+    "uri": "/installer.php?a=1&dup-uninstall",
+    "headers": {
+      "Host": "example.test"
+    },
+    "expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-108-mailpoet-path",
+    "uri": "/mailpoet/x/wysija-captcha",
+    "headers": {
+      "Host": "example.test"
+    },
+    "expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-109-file-manager-path",
+    "uri": "/wp-file-manager/x/connector.minimal.php",
+    "headers": {
+      "Host": "example.test"
+    },
+    "expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-110-encoded-ampersand-dup",
+    "uri": "/installer.php?a=1%26dup-uninstall",
+    "headers": {
+      "Host": "example.test"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-111-encoded-ampersand-equals-action",
+    "uri": "/wp-admin/admin-ajax.php?x=1%26action%3Drevslider_show_image",
+    "headers": {
+      "Host": "example.test"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-112-encoded-question-mark-dup",
+    "uri": "/installer.php%3Fdup-uninstall",
+    "headers": {
+      "Host": "example.test"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-113-encoded-question-mark-action",
+    "uri": "/wp-admin/admin-ajax.php%3Faction=revslider_show_image",
+    "headers": {
+      "Host": "example.test"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-114-encoded-installer-path-raw-query",
+    "uri": "/inst%61ller.php?dup-uninstall=1",
+    "headers": {
+      "Host": "example.test"
+    },
+    "expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-115-encoded-action-key-raw-equals",
+    "uri": "/wp-admin/admin-ajax.php?%61ction=revslider_show_image",
+    "headers": {
+      "Host": "example.test"
+    },
+    "expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-116-double-encoded-action-key",
+    "uri": "/wp-admin/admin-ajax.php?%2561ction=revslider_show_image",
+    "headers": {
+      "Host": "example.test"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-117-uppercase-action-key",
+    "uri": "/wp-admin/admin-ajax.php?ACTION=revslider_show_image",
+    "headers": {
+      "Host": "example.test"
+    },
+    "expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-118-uppercase-dup-key",
+    "uri": "/installer.php?DUP-UNINSTALL=1",
+    "headers": {
+      "Host": "example.test"
+    },
+    "expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-119-encoded-action-value",
+    "uri": "/wp-admin/admin-ajax.php?action=revslider_show_%69mage",
+    "headers": {
+      "Host": "example.test"
+    },
+    "expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-120-revslider-path",
+    "uri": "/wp-content/plugins/revslider_show_image",
+    "headers": {
+      "Host": "example.test"
+    },
+    "expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-121-encoded-question-mark-timthumb",
+    "uri": "/redirect%3Fto=timthumb.php",
+    "headers": {
+      "Host": "example.test"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-122-encoded-ampersand-equals-path",
+    "uri": "/wp-admin/admin-ajax.php%26action%3Drevslider_show_image",
+    "headers": {
+      "Host": "example.test"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522121-90",
+    "method": "GET",
+    "uri": "/wp-admin/",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522121
+    ]
+  },
+  {
+    "name": "9522121-91",
+    "method": "GET",
+    "uri": "/wp-adm%69n/",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522121
+    ]
+  },
+  {
+    "name": "9522121-92",
+    "method": "GET",
+    "uri": "/about%2ehtml",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522121
+    ]
+  },
+  {
+    "name": "9522121-93",
+    "method": "GET",
+    "uri": "/wp-adm%2569n/",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522121
+    ]
+  },
+  {
+    "name": "9522117-absolute-raw",
+    "method": "POST",
+    "uri": "http://localhost/wp-json/sure-triggers/v1/connection/create-wp-connection",
+    "headers": {
+      "Host": "localhost"
+    },
+    "expect_ids": [
+      9522117
+    ]
+  },
+  {
+    "name": "9522117-absolute-encoded",
+    "method": "POST",
+    "uri": "http://localhost/wp-json/sure-tr%69ggers/v1/connection/create-wp-connection",
+    "headers": {
+      "Host": "localhost"
+    },
+    "expect_ids": [
+      9522117
+    ]
+  },
+  {
+    "name": "9522117-absolute-double",
+    "method": "POST",
+    "uri": "http://localhost/wp-json/sure-tr%2569ggers/v1/connection/create-wp-connection",
+    "headers": {
+      "Host": "localhost"
+    },
+    "no_expect_ids": [
+      9522117
+    ]
+  },
+  {
+    "name": "9522118-absolute-raw",
+    "method": "POST",
+    "uri": "http://localhost/wp-json/bricks/v1/render_element",
+    "headers": {
+      "Host": "localhost"
+    },
+    "expect_ids": [
+      9522118
+    ]
+  },
+  {
+    "name": "9522118-absolute-encoded",
+    "method": "POST",
+    "uri": "http://localhost/wp-json/br%69cks/v1/render_element",
+    "headers": {
+      "Host": "localhost"
+    },
+    "expect_ids": [
+      9522118
+    ]
+  },
+  {
+    "name": "9522118-absolute-double",
+    "method": "POST",
+    "uri": "http://localhost/wp-json/br%2569cks/v1/render_element",
+    "headers": {
+      "Host": "localhost"
+    },
+    "no_expect_ids": [
+      9522118
+    ]
+  },
+  {
+    "name": "9522112-94",
+    "method": "GET",
+    "uri": "/wp-admin/load-scripts.php?load%5B%5D=jquery,jquery-ui-core,jquery-ui-widget,jquery-ui-mouse,jquery-ui-sortable,wp-pointer,wp-util,wp-a11y,wp-i18n",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522112
+    ]
+  },
+  {
+    "name": "9522112-95",
+    "method": "GET",
+    "uri": "/wp-admin/load-scripts.php?load%5B%5D=jquery,common",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522112
+    ]
+  },
+  {
+    "name": "9522100-raw",
+    "method": "GET",
+    "uri": "/readme.html",
+    "headers": {
+      "Host": "localhost"
+    },
+    "expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-encoded",
+    "method": "GET",
+    "uri": "/r%65adme.html",
+    "headers": {
+      "Host": "localhost"
+    },
+    "expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-double",
+    "method": "GET",
+    "uri": "/r%2565adme.html",
+    "headers": {
+      "Host": "localhost"
+    },
+    "no_expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-query",
+    "method": "GET",
+    "uri": "/wp-content/debug%2elog?x=1",
+    "headers": {
+      "Host": "localhost"
+    },
+    "expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-absolute",
+    "method": "GET",
+    "uri": "http://localhost/r%65adme.html",
+    "headers": {
+      "Host": "localhost"
+    },
+    "expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-absolute-double",
+    "method": "GET",
+    "uri": "http://localhost/r%2565adme.html",
+    "headers": {
+      "Host": "localhost"
+    },
+    "no_expect_ids": [
+      9522100
+    ]
+  }
+]
