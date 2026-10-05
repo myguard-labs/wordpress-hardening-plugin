@@ -69,3 +69,157 @@ tests:
             text
         output:
           log_contains: id "9522303"
+  - test_title: 9522303-5
+    desc: Block exposed backup archive /backup.zip
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+          port: 80
+          method: GET
+          uri: /backup.zip
+        output:
+          log_contains: id "9522303"
+  - test_title: 9522303-6
+    desc: Block exposed backup archive /backup.tar
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+          port: 80
+          method: GET
+          uri: /backup.tar
+        output:
+          log_contains: id "9522303"
+  - test_title: 9522303-7
+    desc: Block exposed backup archive /db-backup.zip
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+          port: 80
+          method: GET
+          uri: /db-backup.zip
+        output:
+          log_contains: id "9522303"
+  - test_title: 9522303-8
+    desc: Block exposed backup archive /site-backup.zip
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+          port: 80
+          method: GET
+          uri: /site-backup.zip
+        output:
+          log_contains: id "9522303"
+  - test_title: 9522303-9
+    desc: Block exposed backup archive /wordpress-backup.zip
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+          port: 80
+          method: GET
+          uri: /wordpress-backup.zip
+        output:
+          log_contains: id "9522303"
+  - test_title: 9522303-10
+    desc: Block exposed backup archive /backup.tar.xz
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+          port: 80
+          method: GET
+          uri: /backup.tar.xz
+        output:
+          log_contains: id "9522303"
+  - test_title: 9522303-11
+    desc: Allow benign backup-like path /wp-content/plugins/some-backup-plugin/style.css
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+          port: 80
+          method: GET
+          uri: /wp-content/plugins/some-backup-plugin/style.css
+        output:
+          log_not_contains: id "9522303"
+  - test_title: 9522303-12
+    desc: Allow benign backup-like path /wp-content/plugins/backup-manager/style.css
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+          port: 80
+          method: GET
+          uri: /wp-content/plugins/backup-manager/style.css
+        output:
+          log_not_contains: id "9522303"
+  - test_title: 9522303-13
+    desc: Allow benign backup-like path /backup.zip.css
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+          port: 80
+          method: GET
+          uri: /backup.zip.css
+        output:
+          log_not_contains: id "9522303"
+  - test_title: 9522303-14
+    desc: Allow benign backup-like path /site-backup-guide/
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+          port: 80
+          method: GET
+          uri: /site-backup-guide/
+        output:
+          log_not_contains: id "9522303"
+  - test_title: 9522303-15
+    desc: Allow bare backup-like page slug /site-backup
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+          port: 80
+          method: GET
+          uri: /site-backup
+        output:
+          log_not_contains: id "9522303"
