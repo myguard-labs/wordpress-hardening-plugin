@@ -67,7 +67,9 @@ Whitelisted by default:
 - `::1` (IPv6 loopback)
 - `fc00::/7` (IPv6 Unique Local addresses, RFC 4193)
 
-This allows internal systems (cron jobs, monitoring, load balancers) to access these endpoints while blocking external attacks.
+This allows internal systems (cron jobs, monitoring, load balancers) to access
+these endpoints while blocking external attacks. A private peer with present
+but untrusted or malformed XFF does not receive this exemption.
 
 ### Client-IP resolution
 
@@ -84,13 +86,15 @@ client cannot claim a private address to obtain the private-IP whitelist.
 
 For a reverse-proxy deployment, populate
 `plugins/wordpress-hardening-trusted-proxies.data` with only the CIDRs of your
-real upstream proxies. Those proxies **must overwrite client-supplied XFF**,
+immediate upstream proxies as seen in `REMOTE_ADDR`, including private proxy
+addresses. Those proxies **must overwrite client-supplied XFF**,
 because the resolver uses its leftmost address. XFF is then honoured only when
 `REMOTE_ADDR` matches the list; all other peers still use `REMOTE_ADDR`.
 
-When XFF is present but its peer is not trusted, the peer's private address
-cannot grant a private-client exemption. Normal checks use `REMOTE_ADDR`.
-Direct private clients without XFF keep their exemption.
+When XFF is present but the peer is unlisted or the first hop cannot be parsed,
+the peer's private address cannot grant a private-client exemption. Normal
+checks still use `REMOTE_ADDR`. Direct private clients without XFF and listed
+proxies with a parsed private first hop keep their exemption.
 
 **Upgrade:** deployments that previously relied on unconditional XFF trust must
 populate this list. Keep `tx.wphard.trusted_proxies_enabled=1` (the default). An
@@ -197,7 +201,9 @@ Blocks access to `wp-login.php` for clients from countries not in the allowed li
 **How it works:**
 - Upstream proxy (Cloudflare, nginx + ngx_http_geoip2_module, HAProxy, etc.) sets `CF-IPCountry` or `X-GeoIP-Country` with the client's 2-letter ISO 3166-1 country code
 - Requests without a recognized country header are **allowed through** (fail-open)
-- Loopback and private ranges (IPv4 RFC 1918 + IPv6 `::1` and ULA `fc00::/7`) are always whitelisted
+- Loopback and private ranges (IPv4 RFC 1918 + IPv6 `::1` and ULA
+  `fc00::/7`) are whitelisted when XFF is absent or resolves to a trusted
+  private first hop
 - Allowed countries are listed one per line in `plugins/wordpress-hardening-login-countries.data`
 
 **Default settings:**
@@ -226,7 +232,9 @@ Blocks **all requests** (not just login attempts) from IP addresses listed in `p
 **How it works:**
 - Uses the shared resolved client IP (`tx.wphard.client_ip`) — see [Client-IP resolution](#client-ip-resolution) above
 - Uses ModSecurity's `@ipMatchFromFile` operator — supports IPv4, IPv6, and CIDR notation
-- Loopback and private ranges (IPv4 RFC 1918 + IPv6 `::1` and ULA `fc00::/7`) are always whitelisted
+- Loopback and private ranges (IPv4 RFC 1918 + IPv6 `::1` and ULA
+  `fc00::/7`) are whitelisted when XFF is absent or resolves to a trusted
+  private first hop
 - Applies globally (all URIs, not just `wp-login.php`)
 
 **Default settings:**

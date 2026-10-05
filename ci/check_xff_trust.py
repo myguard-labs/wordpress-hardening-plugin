@@ -1,14 +1,15 @@
-"""Exercise shipped XFF defaults and proxy pinning on real WAF engines.
+"""Exercise XFF defaults and proxy pinning on real WAF engines.
 
-The Docker lane uses a benchmark-network peer (not RFC1918), so falling back
-from XFF cannot accidentally pass because the test runner itself is private.
-No CI legacy-XFF override is loaded. All resources are disposable.
+Docker lanes use both public benchmark and private peers, so tests cover
+fallback, private exemptions, and malformed XFF on each engine. No CI
+legacy-XFF override is loaded. All resources are disposable.
 """
 
 import argparse
 import ipaddress
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -18,10 +19,36 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-IMAGES = {
-    "apache": "owasp/modsecurity-crs:4.26.0-apache-202605200705",
-    "nginx": "owasp/modsecurity-crs:4.26.0-nginx-202605200705",
-}
+TAG_KEYS = {"apache": "CRS_TAG", "nginx": "CRS_TAG_NGINX"}
+TAG_WORKFLOWS = (
+    "apache-modsecurity2.yml",
+    "nginx-libmodsecurity3.yml",
+    "security-corpus.yml",
+)
+
+
+def workflow_tags():
+    """Read the same CRS tags used by the engine workflows and compose."""
+    selected = {}
+    for workflow in TAG_WORKFLOWS:
+        source = (ROOT / ".github/workflows" / workflow).read_text()
+        for key in TAG_KEYS.values():
+            matches = re.findall(r"^  " + key + r': "([^"]+)"$', source, re.MULTILINE)
+            if len(matches) != 1:
+                raise ValueError(f"{workflow}: expected exactly one {key}")
+            if key in selected and selected[key] != matches[0]:
+                raise ValueError(f"{workflow}: {key} differs from other workflows")
+            selected[key] = matches[0]
+    for key, tag in selected.items():
+        if key in os.environ and os.environ[key] != tag:
+            raise ValueError(f"{key} environment differs from workflow tag {tag}")
+    return selected
+
+
+def selected_image(engine, tags, explicit=None):
+    return explicit or "owasp/modsecurity-crs:" + tags[TAG_KEYS[engine]]
+
+
 # name, header, whether a trusted first hop is private
 CASES = [
     ("no-header", None, False),
@@ -68,7 +95,7 @@ def stage(directory, mode, peer):
         )
 
 
-def peer_cases(private_peer, mode):
+def peer_cases(private_peer):
     # Private forwarding peers must never lend their exemption to public XFF.
     if private_peer:
         cases = [
@@ -76,13 +103,12 @@ def peer_cases(private_peer, mode):
             ("private-peer-public-XFF", "8.8.8.8", False),
             ("private-peer-private-XFF", "10.0.0.5", True),
         ]
-        if mode != "trusted":
-            cases.extend(
-                [
-                    ("private-peer-empty-XFF", "", False),
-                    ("private-peer-malformed-XFF", "127.0.0.1junk", False),
-                ]
-            )
+        cases.extend(
+            [
+                ("private-peer-empty-XFF", "", False),
+                ("private-peer-malformed-XFF", "127.0.0.1junk", False),
+            ]
+        )
         return cases
     return CASES
 
@@ -110,13 +136,13 @@ def reputation_cases(mode, peer):
 
 def coraza(directory, probe, private_peer=False):
     peer = "10.254.0.1" if private_peer else "198.18.0.1"
+    setup = directory / "setup.conf"
+    setup.write_text('SecDefaultAction "phase:2,log,deny,status:403"\n')
     for mode in ("default", "trusted", "untrusted"):
         plugins = directory / mode
         stage(plugins, mode, peer)
-        setup = directory / "setup.conf"
-        setup.write_text('SecDefaultAction "phase:2,log,deny,status:403"\n')
         cases = []
-        for name, header, private in peer_cases(private_peer, mode):
+        for name, header, private in peer_cases(private_peer):
             allowed = (mode == "trusted" and private) or (
                 private_peer and header is None
             )
@@ -201,7 +227,7 @@ def check_http(engine, mode, url, server, private_peer):
         time.sleep(1)
     else:
         raise AssertionError(run("docker", "logs", server))
-    for case, header, private in peer_cases(private_peer, mode):
+    for case, header, private in peer_cases(private_peer):
         allowed = (mode == "trusted" and private) or (private_peer and header is None)
         expected = 200 if allowed else 403
         actual = status("/xmlrpc.php", header)
@@ -221,7 +247,7 @@ def check_http(engine, mode, url, server, private_peer):
     print(f"{engine}:{mode}:homepage: HTTP 200", flush=True)
 
 
-def docker(directory, engine, private_peer=False):
+def docker(directory, engine, image, private_peer=False):
     name = directory.parent.name.replace(".", "-") + "-" + directory.name
     network = name + "-net"
     containers = []
@@ -233,15 +259,14 @@ def docker(directory, engine, private_peer=False):
         )
         run("docker", "network", "create", "--subnet", str(base) + "/28", network)
         peer = str(base + 1)  # host gateway, the directly-connected test peer
-        backend = name + "-backend"
-        containers.append(backend)
+        containers.append(name + "-backend")
         run(
             "docker",
             "run",
             "-d",
             "--rm",
             "--name",
-            backend,
+            name + "-backend",
             "--network",
             network,
             "-v",
@@ -263,7 +288,7 @@ def docker(directory, engine, private_peer=False):
                 "--network",
                 network,
                 "-e",
-                "BACKEND=http://" + backend + ":80",
+                "BACKEND=http://" + name + "-backend:80",
                 "-e",
                 "PORT=8080",
                 "-e",
@@ -272,7 +297,7 @@ def docker(directory, engine, private_peer=False):
                 "MODSEC_RESP_BODY_ACCESS=Off",
                 "-v",
                 str(plugins) + ":/etc/modsecurity.d/owasp-crs/plugins:ro",
-                IMAGES[engine],
+                image,
             )
             address = run(
                 "docker",
@@ -298,11 +323,25 @@ def docker(directory, engine, private_peer=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("engine", choices=["coraza", *IMAGES])
+    parser.add_argument("engine", nargs="?", choices=["coraza", *TAG_KEYS])
     parser.add_argument("--probe", type=Path)
+    parser.add_argument("--image", help="explicit Docker image for the selected engine")
+    parser.add_argument(
+        "--check-tags",
+        action="store_true",
+        help="check workflow tag consistency and exit",
+    )
     args = parser.parse_args()
+    tags = workflow_tags()
+    if args.check_tags:
+        print("CRS workflow tags consistent", flush=True)
+        return
+    if args.engine is None:
+        parser.error("engine is required unless --check-tags is set")
     if args.engine == "coraza" and args.probe is None:
         parser.error("coraza requires --probe")
+    if args.engine == "coraza" and args.image is not None:
+        parser.error("--image is only valid for Docker engines")
     with tempfile.TemporaryDirectory(prefix="wph-xff-") as temporary:
         directory = Path(temporary)
         directory.chmod(0o755)
@@ -312,7 +351,12 @@ def main():
             if args.engine == "coraza":
                 coraza(lane, args.probe.resolve(), private_peer)
             else:
-                docker(lane, args.engine, private_peer)
+                docker(
+                    lane,
+                    args.engine,
+                    selected_image(args.engine, tags, args.image),
+                    private_peer,
+                )
 
 
 if __name__ == "__main__":
