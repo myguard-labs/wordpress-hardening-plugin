@@ -271,7 +271,7 @@ The plugin uses the allocated range **9522000-9522999**. Major buckets:
 | `9522010`-`9522055` | Config-knob `SecAction`s (commented examples in `config.conf`) |
 | `9522012`-`9522050` | Default-value setters (in `before.conf`, IPv6/proxy series) |
 | `9522071`-`9522081` | Default-value setters (in `before.conf`, audit-round-4 protections) |
-| `9522060`-`9522066` | Client-IP resolver (`REMOTE_ADDR`, XFF v4/v6, trusted-proxy gate, `client_is_private`) |
+| `9522060`-`9522067` | Client-IP resolver (`REMOTE_ADDR`, XFF v4/v6, trusted-proxy gate, `client_is_private`) |
 | `9522099` | Plugin kill-switch (removes 9522000-9522999 except itself) |
 | `9522101`-`9522111` | xmlrpc / user-enumeration / REST API / admin-login / wp-cron blocks |
 | `9522150`-`9522155` | Per-group whitelist (uses `client_is_private`) |

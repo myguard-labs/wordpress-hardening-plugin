@@ -91,6 +91,100 @@ CASES = [
 ]
 
 
+# Each name carries an independently chosen expected private-network outcome.
+IPV6_BOUNDARIES = [
+    ("mapped-expanded-private", "0:0:0:0:0:ffff:10.0.0.1", True),
+    ("mapped-expanded-public", "0:0:0:0:0:ffff:192.0.2.1", False),
+    ("mapped-compressed-private", "0:0::0:ffff:192.168.1.1", True),
+    ("mapped-padded-private", "0000:0000:0000:0000:0000:FFFF:127.0.0.1", True),
+    ("mapped-bracketed-private", "[0:0:0:0:0:ffff:10.0.0.1]", True),
+    ("mixed-uncompressed", "2001:db8:1:2:3:4:192.0.2.1", False),
+    ("mixed-compressed", "2001:db8::1:192.0.2.1", False),
+    ("mixed-ula", "fc00:1:2:3:4:5:192.0.2.1", True),
+    ("ula-compression-boundary", "fc00:0:0:0:0:0::1", True),
+    ("ula-overlong-compression", "fc00:0:0:0:0:0:0::1", False),
+    ("ula-short-uncompressed", "fc00:1", False),
+    ("ula-overlong-mixed", "fc00:0:0:0:0:0:0:192.0.2.1", False),
+    ("mixed-overlong-compression", "fc00:0:0:0:0:0::192.0.2.1", False),
+    ("encoded-ipv4", "%31%30.0.0.1", False),
+    ("encoded-ipv6", "fc00%3a%3a1", False),
+]
+CASES.extend(IPV6_BOUNDARIES)
+
+
+def address_corpus():
+    """Generate group-count boundaries independently of the rule's regex."""
+    addresses = {header for _, header, _ in IPV6_BOUNDARIES}
+    addresses.update(MALFORMED_IPV6)
+    addresses.update({"::", "::1", "[::]", "::ffff:0.0.0.0", "::ffff:255.255.255.255"})
+    for count in range(11):
+        groups = ["fc00"] + ["0"] * max(0, count - 1) if count else []
+        addresses.add(":".join(groups))
+        for split in range(count + 1):
+            addresses.add(":".join(groups[:split]) + "::" + ":".join(groups[split:]))
+        for tail in ("192.0.2.1", "256.0.0.1", "01.2.3.4"):
+            addresses.add(":".join(groups + [tail]))
+            for split in range(count + 1):
+                addresses.add(
+                    ":".join(groups[:split]) + "::" + ":".join(groups[split:] + [tail])
+                )
+    addresses.update(
+        {
+            "ffff:FFFF:0123:4567:89ab:cdef:abcd:ef01",
+            "abcd::ffff:255.255.255.255",
+            "abcde::1",
+            "gggg::1",
+            "1::2::3",
+            ":::1",
+            "1:::2",
+            "::1%eth0",
+            "[::1]:80",
+            "::ffff:192.0.2.1:80",
+            "::ffff:192.0.2.",
+            "[127.0.0.1]",
+            "fc00::1 junk",
+            "fc00::1, 8.8.8.8",
+            " fc00::1   ",
+        }
+    )
+    # Every possible zero-compression position in an IPv4-mapped prefix.
+    for left in range(6):
+        for right in range(6):
+            addresses.add(
+                ":".join(["0"] * left)
+                + "::"
+                + ":".join(["0"] * right + ["ffff", "10.0.0.1"])
+            )
+    return sorted(addresses)
+
+
+def expected_address(header):
+    """Standards oracle for our first-hop contract, without zones or ports."""
+    token = header.split(",", 1)[0].strip()
+    if token.startswith("[") and token.endswith("]"):
+        token = token[1:-1]
+        if ":" not in token:
+            return None
+    if "%" in token:
+        return None
+    try:
+        ipaddress.ip_address(token)
+    except ValueError:
+        return None
+    return token
+
+
+def parser_cases():
+    # Run the same differential corpus on PCRE/PCRE2 and RE2, not just Python re.
+    headers = set(address_corpus())
+    for header in address_corpus():
+        if expected_address(header) is not None and ":" in header and "[" not in header:
+            headers.update({"[" + header + "]", header + " , 8.8.8.8"})
+    headers.update({"8.8.8.8", "127.0.0.1", "%31%30.0.0.1", "fc00%3a%3a1"})
+    for index, header in enumerate(sorted(headers)):
+        yield "parser-" + str(index), header, expected_address(header)
+
+
 def run(*args, **kwargs):
     """Keep subprocess failures visible without using a shell."""
     try:
@@ -102,6 +196,17 @@ def run(*args, **kwargs):
 
 def stage(directory, mode, peer):
     shutil.copytree(ROOT / "plugins", directory)
+    with (directory / "wordpress-hardening-before.conf").open("a") as rules:
+        rules.write(
+            '\nSecRule REQUEST_URI "@streq /xff-parser-probe" '
+            '"id:9902064,phase:1,deny,status:409,log,t:none,chain"\n'
+            ' SecRule TX:wphard.xff_parsed "@eq 1" "t:none,chain"\n'
+            " SecRule TX:wphard.client_ip "
+            '"!@streq %{REQUEST_HEADERS.X-Expected-Client-IP}" "t:none"\n'
+            'SecRule REQUEST_URI "@streq /xff-parser-probe" '
+            '"id:9902063,phase:1,deny,status:403,log,t:none,chain"\n'
+            ' SecRule TX:wphard.xff_parsed "@eq 1" "t:none"\n'
+        )
     config = []
     if mode in ("trusted", "untrusted"):
         config.append(
@@ -157,6 +262,7 @@ def peer_cases(private_peer):
                 ("private-peer-v6-whitespace", "::1   ", True),
             ]
         )
+        cases.extend(IPV6_BOUNDARIES)
         return cases
     return CASES
 
@@ -193,6 +299,27 @@ def parser_ids(mode, name, header):
     expected = [9522062] if name == "spoof-v6-full" else []
     forbidden = [9522062] if header in MALFORMED_IPV6 else []
     return expected, forbidden
+
+
+def parser_transactions(mode, peer):
+    """Assert both parser acceptance and the exact downstream client identity."""
+    for name, header, address in parser_cases():
+        accepted = mode in ("trusted", "legacy") and address is not None
+        yield {
+            "name": mode + ":" + name,
+            "uri": "/xff-parser-probe",
+            "client_ip": peer,
+            "headers": {
+                "Host": "localhost",
+                "User-Agent": "XFF trust test",
+                "Accept": "*/*",
+                "X-Forwarded-For": header,
+                "X-Expected-Client-IP": address or "invalid",
+            },
+            "expect_ids": [9902063] if accepted else [],
+            "no_expect_ids": [9902064] if accepted else [9902063, 9902064],
+            "expect_interruption": accepted,
+        }
 
 
 def coraza(directory, probe, private_peer=False):
@@ -246,6 +373,7 @@ def coraza(directory, probe, private_peer=False):
         )
         if private_peer:
             cases.extend(reputation_cases(mode, peer))
+        cases.extend(parser_transactions(mode, peer))
         fixture = directory / "transactions.json"
         fixture.write_text(json.dumps(cases))
         print(
@@ -271,10 +399,12 @@ def check_http(engine, mode, url, server, private_peer):
     """Assert real HTTP outcomes after the complete ruleset starts."""
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
-    def status(path, header=None):
+    def status(path, header=None, address=None):
         headers = {"User-Agent": "XFF trust test", "Accept": "*/*"}
         if header is not None:
             headers["X-Forwarded-For"] = header
+        if address is not None:
+            headers["X-Expected-Client-IP"] = address
         request = urllib.request.Request(url + path, headers=headers)
         try:
             with opener.open(request, timeout=3) as response:
@@ -311,8 +441,21 @@ def check_http(engine, mode, url, server, private_peer):
                 f"{engine}:{case['name']}: expected {expected}, got {actual}"
             )
             print(f"{engine}:{case['name']}: HTTP {actual}", flush=True)
+    check_parser_http(status, engine, mode)
     assert status("/") == 200, f"{engine}:{mode}:homepage blocked"
     print(f"{engine}:{mode}:homepage: HTTP 200", flush=True)
+
+
+def check_parser_http(status, engine, mode):
+    """Check parser markers separately from XML-RPC and reputation behavior."""
+    for case, header, address in parser_cases():
+        accepted = mode in ("trusted", "legacy") and address is not None
+        expected = 403 if accepted else 200
+        actual = status("/xff-parser-probe", header, address or "invalid")
+        assert actual == expected, (
+            f"{engine}:{mode}:{case}:{header!r}: expected {expected}, got {actual}"
+        )
+    print(f"{engine}:{mode}: differential parser corpus passed", flush=True)
 
 
 def docker(directory, engine, image, private_peer=False):
