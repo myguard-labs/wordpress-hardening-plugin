@@ -107,6 +107,9 @@ jobs:
           fi
           echo "smoke OK: 9522207 fired on /wp-json/, homepage clean"
 
+      - name: Verify default XFF trust and configured proxies
+        run: python3 ci/check_xff_trust.py nginx
+
       - name: Dump logs on failure
         if: failure()
         run: |

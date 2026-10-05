@@ -1,8 +1,10 @@
 # Trusted upstream proxies (CIDR notation, one per line).
-# Used by rule 9522064 (@ipMatchFromFile) to decide whether to honour
-# X-Forwarded-For. Only takes effect when tx.wphard.trusted_proxies_enabled=1.
+# Used by rule 9522065 (@ipMatchFromFile) to decide whether to honour
+# X-Forwarded-For. Enabled by default; the empty list trusts no peers.
 #
-# Populate with the real public-facing IPs of your CDN / load balancer / proxy:
+# List the immediate REMOTE_ADDR peers that overwrite client-supplied XFF,
+# including private addresses of internal load balancers or reverse proxies.
+# Public provider ranges below are examples only when they are the immediate peer:
 #
 # Cloudflare:        https://www.cloudflare.com/ips-v4 / https://www.cloudflare.com/ips-v6
 # AWS CloudFront:    https://d7uri8nf7uskq.cloudfront.net/tools/list-cloudfront-ips
