@@ -10,6 +10,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import yaml
 from check_security_corpus import check_corpus
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -60,6 +61,12 @@ class SecurityCorpusTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "invalid.yaml"):
                 check_corpus(corpus)
 
+    def test_invalid_utf8_names_the_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / "invalid.yaml").write_bytes(b"\xff")
+            with self.assertRaisesRegex(ValueError, "invalid.yaml"):
+                check_corpus(Path(directory))
+
     def test_unhashable_mapping_key_fails(self):
         with tempfile.TemporaryDirectory() as directory:
             (Path(directory) / "invalid.yaml").write_text("? [one, two]\n: value\n")
@@ -88,7 +95,15 @@ class SecurityCorpusTest(unittest.TestCase):
                 sys, "argv", [str(CHECKER), str(corpus)]
             ):
                 runpy.run_path(str(CHECKER), run_name="__main__")
-            self.assertIn("Validated 1 security corpus YAML files", output.getvalue())
+            self.assertIn("Validated 1 security corpus YAML file\n", output.getvalue())
+
+            (corpus / "second.yml").write_text("meta: {}\n")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output), mock.patch.object(
+                sys, "argv", [str(CHECKER), str(corpus)]
+            ):
+                runpy.run_path(str(CHECKER), run_name="__main__")
+            self.assertIn("Validated 2 security corpus YAML files\n", output.getvalue())
 
             (corpus / "valid.yaml").write_text("meta: [\n")
             errors = io.StringIO()
@@ -101,14 +116,49 @@ class SecurityCorpusTest(unittest.TestCase):
             self.assertEqual(1, exit_status.exception.code)
             self.assertIn("valid.yaml", errors.getvalue())
 
-    def test_workflow_validates_before_ftw(self):
-        workflow = WORKFLOW.read_text()
-        self.assertIn("python3 ci/check_security_corpus.py tests/security", workflow)
-        self.assertIn("./ftw check -d tests/security", workflow)
+    def assert_workflow_validates_before_ftw(self, workflow):
+        jobs = yaml.safe_load(workflow)["jobs"]
+        steps = jobs["security-corpus"]["steps"]
+        run = next(step["run"] for step in steps if step.get("name") == "Run WAF security corpus")
+        commands = []
+        pending = ""
+        for line in run.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            pending += line.rstrip("\\").strip() + " "
+            if not line.endswith("\\"):
+                commands.append(" ".join(pending.split()))
+                pending = ""
+        venv = '"$RUNNER_TEMP/security-corpus-venv/bin/python"'
+        checker = f"{venv} ci/check_security_corpus.py tests/security"
+        ftw = "./ftw check -d tests/security --config tests/integration/.ftw.corpus.yml"
+        self.assertIn('python3 -m venv "$RUNNER_TEMP/security-corpus-venv"', commands)
+        self.assertIn(f"{venv} -m pip install --disable-pip-version-check PyYAML==6.0.2", commands)
+        self.assertIn(checker, commands, "checker command must execute")
+        self.assertIn(ftw, commands)
         self.assertLess(
-            workflow.index("python3 ci/check_security_corpus.py tests/security"),
-            workflow.index("./ftw check -d tests/security"),
+            commands.index(checker),
+            commands.index(ftw),
         )
+
+    def test_workflow_validates_before_ftw(self):
+        self.assert_workflow_validates_before_ftw(WORKFLOW.read_text())
+
+    def test_commented_checker_command_fails_workflow_control(self):
+        workflow = WORKFLOW.read_text()
+        command = (
+            '          "$RUNNER_TEMP/security-corpus-venv/bin/python" \\\n'
+            '            ci/check_security_corpus.py tests/security\n'
+        )
+        self.assertIn(command, workflow)
+        commented = (
+            '          # "$RUNNER_TEMP/security-corpus-venv/bin/python" \\\n'
+            '          # ci/check_security_corpus.py tests/security\n'
+        )
+        mutated = workflow.replace(command, commented, 1)
+        with self.assertRaisesRegex(AssertionError, "checker command must execute"):
+            self.assert_workflow_validates_before_ftw(mutated)
 
 
 if __name__ == "__main__":

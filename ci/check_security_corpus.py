@@ -45,14 +45,15 @@ def check_corpus(directory):
     if not paths:
         raise ValueError(f"no YAML corpus files in {directory}")
     for path in paths:
-        with path.open(encoding="utf-8") as stream:
-            loader = UniqueKeyLoader(stream)
-            try:
-                loader.get_single_data()
-            except yaml.YAMLError as exc:
-                raise ValueError(f"{path}: {exc}") from exc
-            finally:
-                loader.dispose()
+        try:
+            with path.open(encoding="utf-8") as stream:
+                loader = UniqueKeyLoader(stream)
+                try:
+                    loader.get_single_data()
+                finally:
+                    loader.dispose()
+        except (yaml.YAMLError, UnicodeError) as exc:
+            raise ValueError(f"{path}: {exc}") from exc
     return len(paths)
 
 
@@ -64,7 +65,8 @@ def main():
         count = check_corpus(args.directory)
     except (OSError, ValueError) as exc:
         parser.exit(1, f"{exc}\n")
-    print(f"Validated {count} security corpus YAML files")
+    suffix = "file" if count == 1 else "files"
+    print(f"Validated {count} security corpus YAML {suffix}")
 
 
 if __name__ == "__main__":

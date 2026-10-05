@@ -105,8 +105,11 @@ jobs:
 
       - name: Run WAF security corpus
         run: |
-          python3 -m pip install PyYAML==6.0.2
-          python3 ci/check_security_corpus.py tests/security
+          python3 -m venv "$RUNNER_TEMP/security-corpus-venv"
+          "$RUNNER_TEMP/security-corpus-venv/bin/python" -m pip install \
+            --disable-pip-version-check PyYAML==6.0.2
+          "$RUNNER_TEMP/security-corpus-venv/bin/python" \
+            ci/check_security_corpus.py tests/security
           ./ftw check -d tests/security --config tests/integration/.ftw.corpus.yml
           ./ftw run   -d tests/security --config tests/integration/.ftw.corpus.yml \
             --show-failures-only
