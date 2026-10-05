@@ -107,6 +107,10 @@ def peer_cases(private_peer):
             [
                 ("private-peer-empty-XFF", "", False),
                 ("private-peer-malformed-XFF", "127.0.0.1junk", False),
+                ("private-peer-malformed-whitespace-v4-XFF", "127.0.0.1 junk", False),
+                ("private-peer-malformed-whitespace-v6-XFF", "::1 junk", False),
+                ("private-peer-private-comma-XFF", "10.0.0.5 , 8.8.8.8", True),
+                ("private-peer-private-whitespace-XFF", "10.0.0.5   ", True),
             ]
         )
         return cases
