@@ -6,7 +6,7 @@ meta:
   name: 9522307.yaml
 tests:
   - test_title: 9522307-1
-    desc: Test if directory traversal in uploads is blocked
+    desc: Apache decodes the outer encoding; the rule blocks uploads traversal
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -16,13 +16,13 @@ tests:
             Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
           port: 80
           method: GET
-          uri: /wp-content/uploads/../wp-config.php
+          uri: /wp-content/uploads/%252e%252e/wp-config.php
           data: |
             text
         output:
           log_contains: id "9522307"
   - test_title: 9522307-2
-    desc: Test if double-dot traversal with encoded slash is blocked
+    desc: Test if traversal from a nested uploads directory is blocked
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -32,7 +32,7 @@ tests:
             Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
           port: 80
           method: GET
-          uri: /wp-content/uploads/2024/../../wp-config.php
+          uri: /wp-content/uploads/2024/%252e%252e/%252e%252e/wp-config.php
           data: |
             text
         output:
@@ -48,7 +48,8 @@ tests:
             Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
           port: 80
           method: GET
-          uri: /wp-content/uploads/../../../wp-includes/functions.php
+          uri: "/wp-content/uploads/%252e%252e/%252e%252e/\
+            %252e%252e/wp-includes/functions.php"
           data: |
             text
         output:
@@ -68,32 +69,30 @@ tests:
           no_log_contains: id "9522307"
   - test_title: 9522307-5
     desc: >
-      S6 FIXED (regression): the rule now applies t:urlDecodeUni and no longer
-      normalizePath-collapses the traversal before matching, so a
-      percent-encoded traversal "%2e%2e" is decoded to ".." and MUST now be
-      blocked. Closes the previous bypass.
+      Apache decodes one encoding layer before ModSecurity evaluates
+      REQUEST_URI.
+      The rule's t:urlDecodeUni then decodes the remaining "%2e%2e" into ".."
+      without normalizePath collapsing it. This traversal must be logged.
     stages:
       - input:
           dest_addr: 127.0.0.1
           headers: {Host: localhost, User-Agent: OWASP CRS}
           port: 80
           method: GET
-          uri: /wp-content/uploads/%2e%2e/%2e%2e/wp-config.php
+          uri: /wp-content/uploads/%252e%252e/%252e%252e/wp-config.php
         output:
           log_contains: id "9522307"
   - test_title: 9522307-6
     desc: >
-      S6 regression: double-encoded traversal "%252e%252e" — the first
-      urlDecodeUni yields "%2e%2e"; this documents that single-pass decoding
-      does NOT catch double-encoding (rule has one urlDecodeUni). Pinned as a
-      known residual limitation so a future second-decode change is noticed.
-      TODO(security): consider a second t:urlDecodeUni on 9522307.
+      Triple-encoded traversal leaves "%252e%252e" after Apache's decode and
+      "%2e%2e" after the rule's single t:urlDecodeUni. This documents the
+      residual one-pass decoding limit; the rule must not log this request.
     stages:
       - input:
           dest_addr: 127.0.0.1
           headers: {Host: localhost, User-Agent: OWASP CRS}
           port: 80
           method: GET
-          uri: /wp-content/uploads/%252e%252e/wp-config.php
+          uri: /wp-content/uploads/%25252e%25252e/wp-config.php
         output:
           no_log_contains: id "9522307"

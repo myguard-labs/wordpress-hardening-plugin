@@ -16,11 +16,6 @@ testoverride:
   ignore:
     "9522120-1": "revslider payload encoding — pre-existing"
     "9522205-2": "investigate — pre-existing"
-    "9522307-1": "Apache normalises raw ../ before ModSec; needs encoded payload"
-    "9522307-2": "Apache normalises raw ../ before ModSec; needs encoded payload"
-    "9522307-3": "Apache normalises raw ../ before ModSec; needs encoded payload"
-    "9522307-5": "percent-encoded traversal handling"
-    "9522307-6": "percent-encoded traversal handling"
     "9522309-1": "%00 in URI vs Apache/CRS handling"
     "9522317-1": "overlap with 9522100 phase-1 hard-block"
     "9522317-2": "overlap with 9522100 phase-1 hard-block"
