@@ -46,20 +46,20 @@ jobs:
                 exit 1
               fi
             fi
-          done
+          done || exit 1
           echo "✓ All @pmFromFile references valid"
 
       - name: Check Rule ID ranges
         run: |
           # Validate that all rules are in the allocated range 9522000-9522999
-          grep -o 'id:[0-9]*' plugins/*.conf | cut -d: -f2 |
+          grep -oh 'id:[0-9]*' plugins/*.conf | cut -d: -f2 |
             while read -r id; do
             if [ "$id" -lt 9522000 ] || [ "$id" -gt 9522999 ]; then
               echo "ERROR: Rule ID $id outside allocated range" \
                 "(9522000-9522999)"
               exit 1
             fi
-          done
+          done || exit 1
           echo "✓ All Rule IDs in valid range"
 
       - name: Check for duplicate Rule IDs
