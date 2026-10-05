@@ -47,6 +47,9 @@ From the repo root:
 
 ```bash
 mkdir -p tests/logs/apache tests/logs/nginx && chmod -R 777 tests/logs
+rm -rf tests/integration/.plugins-staged
+mkdir -p tests/integration/.plugins-staged
+cp plugins/* tests/integration/ci-plugin/* tests/integration/.plugins-staged/
 
 CRS_TAG=4.26.0-apache-202605200705 \
 CRS_TAG_NGINX=4.26.0-nginx-202605200705 \
