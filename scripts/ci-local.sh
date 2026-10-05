@@ -8,7 +8,14 @@
 # secrules-parsing install may require network access on a cold host.
 
 set -uo pipefail
-cd "$(git rev-parse --show-toplevel)"
+REPO_ROOT=$(git rev-parse --show-toplevel) || {
+  printf 'CI-local: cannot resolve repository root\n' >&2
+  exit 1
+}
+cd "$REPO_ROOT" || {
+  printf 'CI-local: cannot enter repository root: %s\n' "$REPO_ROOT" >&2
+  exit 1
+}
 
 FAIL=0
 note() { printf '\n=== %s ===\n' "$1"; }
@@ -172,11 +179,16 @@ gate_check BEGIN_WPHARD_IP_REPUTATION        9522603
 
 # ── regression YAML well-formed ─────────────────────────────────────────────
 note "regression YAML parses"
+YAMLERR=$(mktemp "${TMPDIR:-/tmp}/wphard-yamlerr.XXXXXX") || {
+  err "cannot create temporary file for regression YAML errors"
+  exit 1
+}
+trap 'rm -f -- "$YAMLERR"' EXIT
 if python3 -c "import yaml,glob,sys
-[yaml.safe_load(open(f)) for f in glob.glob('tests/regression/wordpress-hardening-plugin/*.yaml')]" 2>/tmp/yamlerr; then
+[yaml.safe_load(open(f)) for f in glob.glob('tests/regression/wordpress-hardening-plugin/*.yaml')]" 2>"$YAMLERR"; then
   ok "all regression YAML valid"
 else
-  err "invalid regression YAML: $(cat /tmp/yamlerr)"
+  err "invalid regression YAML: $(cat "$YAMLERR")"
 fi
 
 printf '\n'

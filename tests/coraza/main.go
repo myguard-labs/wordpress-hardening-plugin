@@ -38,6 +38,8 @@ import (
 	"sort"
 
 	"github.com/corazawaf/coraza/v3"
+	"github.com/corazawaf/coraza/v3/experimental/plugins/plugintypes"
+	"github.com/corazawaf/coraza/v3/types"
 )
 
 func try(name, directive string) {
@@ -76,6 +78,28 @@ type txTest struct {
 	ExpectIDs          []int             `json:"expect_ids"`
 	NoExpectIDs        []int             `json:"no_expect_ids"`
 	ExpectInterruption *bool             `json:"expect_interruption"`
+}
+
+type requestBodyProcessor interface {
+	WriteRequestBody([]byte) (*types.Interruption, int, error)
+	ProcessRequestBody() (*types.Interruption, error)
+}
+
+func processRequestBody(tx requestBodyProcessor, data string) (*types.Interruption, error) {
+	if data != "" {
+		it, _, err := tx.WriteRequestBody([]byte(data))
+		if err != nil {
+			return it, fmt.Errorf("write request body: %w", err)
+		}
+		if it != nil {
+			return it, nil
+		}
+	}
+	it, err := tx.ProcessRequestBody()
+	if err != nil {
+		return it, fmt.Errorf("process request body: %w", err)
+	}
+	return it, nil
 }
 
 func runTests(testFile string, confFiles []string) {
@@ -124,14 +148,20 @@ func runTests(testFile string, confFiles []string) {
 			tx.AddRequestHeader(k, v)
 		}
 		it := tx.ProcessRequestHeaders()
-		if it == nil && t.Data != "" {
-			if it2, _, err := tx.WriteRequestBody([]byte(t.Data)); err == nil && it2 == nil {
-				it, _ = tx.ProcessRequestBody()
-			} else {
-				it = it2
+		var problems []string
+		if it == nil {
+			var err error
+			it, err = processRequestBody(tx, t.Data)
+			if err != nil {
+				problems = append(problems, err.Error())
 			}
-		} else if it == nil {
-			it, _ = tx.ProcessRequestBody()
+		}
+		// Coraza reports malformed bodies through variables even when the API returns nil.
+		bodyTx, ok := tx.(plugintypes.TransactionState)
+		if !ok {
+			problems = append(problems, "request body error variables unavailable")
+		} else if bodyTx.Variables().RequestBodyError().Get() == "1" {
+			problems = append(problems, "request body processor: "+bodyTx.Variables().RequestBodyErrorMsg().Get())
 		}
 		tx.ProcessLogging()
 
@@ -147,7 +177,6 @@ func runTests(testFile string, confFiles []string) {
 		sort.Ints(firedList)
 		tx.Close()
 
-		var problems []string
 		for _, id := range t.ExpectIDs {
 			if !fired[id] {
 				problems = append(problems, fmt.Sprintf("expected id %d did not fire", id))
