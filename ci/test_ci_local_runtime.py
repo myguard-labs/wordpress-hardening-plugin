@@ -116,9 +116,18 @@ class CiLocalYamlTempTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             python = root / "python3"
+            # Keep the fixture independent of procfs, including on Linux test hosts.
             python.write_text(
                 f"#!{sys.executable}\nimport os, sys\n"
-                'print(os.readlink("/proc/self/fd/2"), flush=True)\n'
+                'from pathlib import Path\n'
+                'from unittest.mock import patch\n'
+                'with patch("os.readlink", side_effect=FileNotFoundError("procfs unavailable")):\n'
+                '    stderr = os.fstat(2)\n'
+                '    paths = [path for path in Path(os.environ["TMPDIR"]).iterdir()\n'
+                '             if os.path.samestat(path.stat(), stderr)]\n'
+                '    if len(paths) != 1:\n'
+                '        raise RuntimeError("cannot identify temporary diagnostics file")\n'
+                '    print(paths[0], flush=True)\n'
                 'sys.stdin.readline()\n'
                 'sys.stderr.write("isolated YAML error\\n")\n'
                 'sys.exit(int(os.environ["CI_YAML_TEST_STATUS"]))\n'
