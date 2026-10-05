@@ -60,3 +60,47 @@ tests:
           uri: /wp-config.php
         output:
           no_log_contains: id "9522114"
+  - test_title: 9522114-90
+    desc: raw wp-config backup suffix is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.backup
+        output:
+          log_contains: id "9522114"
+  - test_title: 9522114-91
+    desc: single-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.s%61ve
+        output:
+          log_contains: id "9522114"
+  - test_title: 9522114-92
+    desc: benign-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.s%61ve-guide
+        output:
+          no_log_contains: id "9522114"
+  - test_title: 9522114-93
+    desc: double-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-config.php.s%2561ve
+        output:
+          no_log_contains: id "9522114"

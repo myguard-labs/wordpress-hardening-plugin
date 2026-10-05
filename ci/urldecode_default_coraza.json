@@ -1,0 +1,24 @@
+[
+  {
+    "name": "9522115-default-raw",
+    "method": "GET",
+    "uri": "/wp-content/plugins/akismet/readme.txt",
+    "headers": {
+      "Host": "localhost"
+    },
+    "no_expect_ids": [
+      9522115
+    ]
+  },
+  {
+    "name": "9522115-default-encoded",
+    "method": "GET",
+    "uri": "/wp-content/plugins/akismet/readm%65.txt",
+    "headers": {
+      "Host": "localhost"
+    },
+    "no_expect_ids": [
+      9522115
+    ]
+  }
+]

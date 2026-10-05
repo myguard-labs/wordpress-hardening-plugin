@@ -23,13 +23,13 @@ The official image's include chain is:
 *-config.conf -> *-before.conf -> CRS rules -> *-after.conf
 ```
 
-The compose file mounts:
-
-- `plugins/` (the real plugin tree: config + before/after + `.data` files) into
-  `/etc/modsecurity.d/owasp-crs/plugins/`;
-- `ci-plugin/zzz-ci-config.conf` — CI-only: enables the opt-in features (GeoIP
-  login control, IP reputation, scanner/REST/wp-cron blocking, strict integer
-  params) that ship disabled, and bumps detection paranoia to 2.
+Compose mounts `tests/integration/.plugins-staged/` into both WAF services at
+`/etc/modsecurity.d/owasp-crs/plugins/`. Stage copies from `plugins/` and the
+CI-only `ci-plugin/zzz-ci-config.conf` before startup. That extra config enables
+the opt-in features (GeoIP login control, IP reputation, scanner/REST/wp-cron
+blocking, plugin readme blocking, strict integer params) that ship disabled,
+and bumps detection paranoia to 2. Restage after editing either source tree,
+then restart the WAF services to load the new rules.
 
 go-ftw's `X-CRS-Test` markers are recorded by audit part B directly. A
 separate marker rule duplicates them in part H and can make go-ftw capture a
@@ -46,6 +46,11 @@ From the repo root:
 
 ```bash
 mkdir -p tests/logs/apache tests/logs/nginx && chmod -R 777 tests/logs
+rm -rf tests/integration/.plugins-staged
+mkdir -p tests/integration/.plugins-staged
+cp plugins/* tests/integration/ci-plugin/* tests/integration/.plugins-staged/
+mv tests/integration/.plugins-staged/wordpress-hardening-ratelimit.conf \
+  tests/integration/.plugins-staged/wordpress-hardening-ratelimit-before.conf
 
 CRS_TAG=4.26.0-apache-202605200705 \
 CRS_TAG_NGINX=4.26.0-nginx-202605200705 \

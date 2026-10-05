@@ -7,8 +7,8 @@ meta:
 tests:
   - test_title: 9522115-1
     desc: >
-      block_plugin_readme is OFF by default, so plugin readme.txt access must
-      NOT trigger 9522115 with the default config.
+      The CI-only fixture enables block_plugin_readme, so the raw plugin
+      readme path triggers 9522115.
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -16,5 +16,49 @@ tests:
           port: 80
           method: GET
           uri: /wp-content/plugins/akismet/readme.txt
+        output:
+          log_contains: id "9522115"
+  - test_title: 9522115-90
+    desc: raw theme readme.md path is blocked when the CI feature is enabled
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-content/themes/twentytwentyfour/readme.md
+        output:
+          log_contains: id "9522115"
+  - test_title: 9522115-91
+    desc: single-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-content/plugins/akismet/readm%65.txt
+        output:
+          log_contains: id "9522115"
+  - test_title: 9522115-92
+    desc: benign-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-content/plugins/akismet/readm%65.txt-guide
+        output:
+          no_log_contains: id "9522115"
+  - test_title: 9522115-93
+    desc: double-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-content/plugins/akismet/readm%2565.txt
         output:
           no_log_contains: id "9522115"
