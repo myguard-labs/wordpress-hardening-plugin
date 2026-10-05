@@ -66,7 +66,10 @@ CASES = [
     ("spoof-ipv6-loopback", "::1", True),
     ("spoof-mapped", "::ffff:10.0.0.1", True),
     ("spoof-bracketed-v6", "[::1]", True),
-    ("spoof-v6-full", "0:0:0:0:0:0:0:1", False),
+    ("spoof-v6-full", "0:0:0:0:0:0:0:1", True),
+    ("spoof-v6-full-padded", "0000:0000:0000:0000:0000:0000:0000:0001", True),
+    ("spoof-v6-full-bracketed", "[0:0:0:0:0:0:0:1]", True),
+    ("public-v6-full", "0:0:0:0:0:0:0:2", False),
     ("spoof-v6-compressed", "fd00::1", True),
     ("public", "8.8.8.8", False),
     ("private-first", "10.0.0.1, 8.8.8.8", True),
@@ -104,15 +107,15 @@ def stage(directory, mode, peer):
         config.append(
             'SecAction "id:9902062,phase:1,pass,nolog,setvar:tx.wphard.trusted_proxies_enabled=1"'
         )
-    elif mode in ("legacy", "unsupported"):
-        value = 0 if mode == "legacy" else 2
+    elif mode in ("legacy", "unsupported", "textual"):
+        value = {"legacy": 0, "unsupported": 2, "textual": "false"}[mode]
         config.append(
             'SecAction "id:9902062,phase:1,pass,nolog,'
             f'setvar:tx.wphard.trusted_proxies_enabled={value}"'
         )
     if peer.startswith("10."):
         with (directory / "wordpress-hardening-ip-reputation.data").open("a") as data:
-            data.write("\n" + peer + "\n")
+            data.write("\n" + peer + "\n2001:db8::bad\n")
         config.append(
             'SecRule REQUEST_URI "@streq /ip-reputation-probe" '
             '"id:9902061,phase:1,pass,nolog,t:none,setvar:tx.wphard.ip_reputation_enabled=1"'
@@ -163,8 +166,12 @@ def reputation_cases(mode, peer):
     for name, header in [
         ("private-peer-reputation-public-XFF", "8.8.8.8"),
         ("private-peer-reputation-no-header", None),
+        ("private-peer-reputation-v6-XFF", "2001:db8::bad"),
+        ("private-peer-reputation-bracketed-v6-XFF", "[2001:db8::bad]"),
     ]:
-        blocked = mode not in ("trusted", "legacy") and header is not None
+        blocked = header is not None and (
+            mode not in ("trusted", "legacy") or name.endswith("v6-XFF")
+        )
         cases.append(
             {
                 "name": mode + ":" + name,
@@ -192,7 +199,7 @@ def coraza(directory, probe, private_peer=False):
     peer = "10.254.0.1" if private_peer else "198.18.0.1"
     setup = directory / "setup.conf"
     setup.write_text('SecDefaultAction "phase:2,log,deny,status:403"\n')
-    for mode in ("default", "trusted", "untrusted", "legacy", "unsupported"):
+    for mode in ("default", "trusted", "untrusted", "legacy", "unsupported", "textual"):
         plugins = directory / mode
         stage(plugins, mode, peer)
         cases = []
@@ -335,7 +342,14 @@ def docker(directory, engine, image, private_peer=False):
             + ":/etc/nginx/nginx.conf:ro",
             "nginx:alpine",
         )
-        for mode in ("default", "trusted", "untrusted", "legacy", "unsupported"):
+        for mode in (
+            "default",
+            "trusted",
+            "untrusted",
+            "legacy",
+            "unsupported",
+            "textual",
+        ):
             plugins = directory / mode
             stage(plugins, mode, peer)
             server = name + "-" + mode

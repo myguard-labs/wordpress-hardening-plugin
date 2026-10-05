@@ -39,6 +39,7 @@ class XffTrustTests(unittest.TestCase):
         ):
             self.assertIn((name, header, False), cases)
         self.assertIn(("private-peer-bracketed-v6", "[::1]", True), cases)
+        self.assertIn(("spoof-v6-full", "0:0:0:0:0:0:0:1", True), check_xff_trust.CASES)
         self.assertIn(
             ("private-peer-mapped-comma", "::ffff:10.0.0.1, 8.8.8.8", True), cases
         )
@@ -56,6 +57,7 @@ class XffTrustTests(unittest.TestCase):
                 ("untrusted", 1),
                 ("legacy", 0),
                 ("unsupported", 2),
+                ("textual", "false"),
             ):
                 target = Path(temporary) / mode
                 check_xff_trust.stage(target, mode, "198.18.0.1")
