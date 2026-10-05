@@ -28,6 +28,14 @@ class XffTrustTests(unittest.TestCase):
             ("private-peer-private-whitespace-XFF", "10.0.0.5   ", True), cases
         )
         self.assertIn(("private-peer-private-XFF", "10.0.0.5", True), cases)
+        self.assertIn(("private-peer-v4-port-XFF", "10.0.0.5:8080", True), cases)
+        self.assertIn(("private-peer-v6-port-XFF", "[::1]:443", True), cases)
+        self.assertIn(
+            ("private-peer-malformed-v4-port-XFF", "10.0.0.5:65536", False), cases
+        )
+        self.assertIn(
+            ("private-peer-malformed-v6-port-XFF", "[::1]:65536", False), cases
+        )
         self.assertIn(("private-peer-no-header", None, False), cases)
         for name, header in (
             ("private-peer-missing-v6-bracket", "[::1"),
