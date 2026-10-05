@@ -29,6 +29,50 @@ class XffTrustTests(unittest.TestCase):
         )
         self.assertIn(("private-peer-private-XFF", "10.0.0.5", True), cases)
         self.assertIn(("private-peer-no-header", None, False), cases)
+        for name, header in (
+            ("private-peer-missing-v6-bracket", "[::1"),
+            ("private-peer-extra-v6-bracket", "::1]"),
+            ("private-peer-mapped-invalid-999", "::ffff:10.999.999.999"),
+            ("private-peer-mapped-invalid-256", "::ffff:127.0.0.256"),
+            ("private-peer-mapped-leading-zero-3", "::ffff:127.000.0.1"),
+            ("private-peer-mapped-leading-zero-2", "::ffff:127.0.0.01"),
+        ):
+            self.assertIn((name, header, False), cases)
+        self.assertIn(("private-peer-bracketed-v6", "[::1]", True), cases)
+        self.assertIn(
+            ("private-peer-mapped-comma", "::ffff:10.0.0.1, 8.8.8.8", True), cases
+        )
+        self.assertIn(("private-peer-v6-whitespace", "::1   ", True), cases)
+
+    def test_trust_modes_stage_explicit_values_and_proxy_boundary(self):
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            mock.patch.object(check_xff_trust, "ROOT", Path(temporary)),
+        ):
+            (Path(temporary) / "plugins").mkdir()
+            for mode, value in (
+                ("default", None),
+                ("trusted", 1),
+                ("untrusted", 1),
+                ("legacy", 0),
+                ("unsupported", 2),
+            ):
+                target = Path(temporary) / mode
+                check_xff_trust.stage(target, mode, "198.18.0.1")
+                config = target / "ci-xff-probe-config.conf"
+                if value is None:
+                    self.assertFalse(config.exists())
+                else:
+                    self.assertIn(
+                        f"trusted_proxies_enabled={value}", config.read_text()
+                    )
+                if mode != "default":
+                    proxy = (
+                        target / "wordpress-hardening-trusted-proxies.data"
+                    ).read_text()
+                    self.assertIn(
+                        "198.18.0.1" if mode == "trusted" else "198.18.0.2", proxy
+                    )
 
     def test_workflow_tags_are_used_for_images_and_detect_drift(self):
         with tempfile.TemporaryDirectory() as temporary:

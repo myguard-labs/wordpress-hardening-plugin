@@ -25,6 +25,14 @@ TAG_WORKFLOWS = (
     "nginx-libmodsecurity3.yml",
     "security-corpus.yml",
 )
+MALFORMED_IPV6 = {
+    "[::1",
+    "::1]",
+    "::ffff:10.999.999.999",
+    "::ffff:127.0.0.256",
+    "::ffff:127.000.0.1",
+    "::ffff:127.0.0.01",
+}
 
 
 def workflow_tags():
@@ -57,6 +65,9 @@ CASES = [
     ("spoof-ula", "fc00::1", True),
     ("spoof-ipv6-loopback", "::1", True),
     ("spoof-mapped", "::ffff:10.0.0.1", True),
+    ("spoof-bracketed-v6", "[::1]", True),
+    ("spoof-v6-full", "0:0:0:0:0:0:0:1", False),
+    ("spoof-v6-compressed", "fd00::1", True),
     ("public", "8.8.8.8", False),
     ("private-first", "10.0.0.1, 8.8.8.8", True),
     ("public-first", "8.8.8.8, 10.0.0.1", False),
@@ -66,6 +77,14 @@ CASES = [
     ("malformed-v6", "::1junk", False),
     ("invalid-octet", "999.0.0.1", False),
     ("empty-first", ", 127.0.0.1", False),
+    ("missing-v6-bracket", "[::1", False),
+    ("extra-v6-bracket", "::1]", False),
+    ("mapped-invalid-999", "::ffff:10.999.999.999", False),
+    ("mapped-invalid-256", "::ffff:127.0.0.256", False),
+    ("mapped-leading-zero-3", "::ffff:127.000.0.1", False),
+    ("mapped-leading-zero-2", "::ffff:127.0.0.01", False),
+    ("mapped-comma", "::ffff:10.0.0.1, 8.8.8.8", True),
+    ("v6-whitespace", "::1   ", True),
 ]
 
 
@@ -80,13 +99,26 @@ def run(*args, **kwargs):
 
 def stage(directory, mode, peer):
     shutil.copytree(ROOT / "plugins", directory)
+    config = []
+    if mode in ("trusted", "untrusted"):
+        config.append(
+            'SecAction "id:9902062,phase:1,pass,nolog,setvar:tx.wphard.trusted_proxies_enabled=1"'
+        )
+    elif mode in ("legacy", "unsupported"):
+        value = 0 if mode == "legacy" else 2
+        config.append(
+            'SecAction "id:9902062,phase:1,pass,nolog,'
+            f'setvar:tx.wphard.trusted_proxies_enabled={value}"'
+        )
     if peer.startswith("10."):
         with (directory / "wordpress-hardening-ip-reputation.data").open("a") as data:
             data.write("\n" + peer + "\n")
-        (directory / "ci-xff-probe-config.conf").write_text(
+        config.append(
             'SecRule REQUEST_URI "@streq /ip-reputation-probe" '
-            '"id:9902061,phase:1,pass,nolog,t:none,setvar:tx.wphard.ip_reputation_enabled=1"\n'
+            '"id:9902061,phase:1,pass,nolog,t:none,setvar:tx.wphard.ip_reputation_enabled=1"'
         )
+    if config:
+        (directory / "ci-xff-probe-config.conf").write_text("\n".join(config) + "\n")
     if mode != "default":
         # An exact IP tests the peer boundary: untrusted is adjacent.
         trusted = peer if mode == "trusted" else str(ipaddress.ip_address(peer) + 1)
@@ -111,6 +143,15 @@ def peer_cases(private_peer):
                 ("private-peer-malformed-whitespace-v6-XFF", "::1 junk", False),
                 ("private-peer-private-comma-XFF", "10.0.0.5 , 8.8.8.8", True),
                 ("private-peer-private-whitespace-XFF", "10.0.0.5   ", True),
+                ("private-peer-missing-v6-bracket", "[::1", False),
+                ("private-peer-extra-v6-bracket", "::1]", False),
+                ("private-peer-mapped-invalid-999", "::ffff:10.999.999.999", False),
+                ("private-peer-mapped-invalid-256", "::ffff:127.0.0.256", False),
+                ("private-peer-mapped-leading-zero-3", "::ffff:127.000.0.1", False),
+                ("private-peer-mapped-leading-zero-2", "::ffff:127.0.0.01", False),
+                ("private-peer-bracketed-v6", "[::1]", True),
+                ("private-peer-mapped-comma", "::ffff:10.0.0.1, 8.8.8.8", True),
+                ("private-peer-v6-whitespace", "::1   ", True),
             ]
         )
         return cases
@@ -123,7 +164,7 @@ def reputation_cases(mode, peer):
         ("private-peer-reputation-public-XFF", "8.8.8.8"),
         ("private-peer-reputation-no-header", None),
     ]:
-        blocked = mode != "trusted" and header is not None
+        blocked = mode not in ("trusted", "legacy") and header is not None
         cases.append(
             {
                 "name": mode + ":" + name,
@@ -138,16 +179,26 @@ def reputation_cases(mode, peer):
     return cases
 
 
+def parser_ids(mode, name, header):
+    """Require a parsed full address and reject malformed first hops in trusted modes."""
+    if mode not in ("trusted", "legacy"):
+        return [], []
+    expected = [9522062] if name == "spoof-v6-full" else []
+    forbidden = [9522062] if header in MALFORMED_IPV6 else []
+    return expected, forbidden
+
+
 def coraza(directory, probe, private_peer=False):
     peer = "10.254.0.1" if private_peer else "198.18.0.1"
     setup = directory / "setup.conf"
     setup.write_text('SecDefaultAction "phase:2,log,deny,status:403"\n')
-    for mode in ("default", "trusted", "untrusted"):
+    for mode in ("default", "trusted", "untrusted", "legacy", "unsupported"):
         plugins = directory / mode
         stage(plugins, mode, peer)
         cases = []
         for name, header, private in peer_cases(private_peer):
-            allowed = (mode == "trusted" and private) or (
+            ids = parser_ids(mode, name, header)
+            allowed = (mode in ("trusted", "legacy") and private) or (
                 private_peer and header is None
             )
             headers = {
@@ -163,8 +214,8 @@ def coraza(directory, probe, private_peer=False):
                     "uri": "/xmlrpc.php",
                     "client_ip": peer,
                     "headers": headers,
-                    "expect_ids": [] if allowed else [9522102],
-                    "no_expect_ids": [9522102] if allowed else [],
+                    "expect_ids": ([] if allowed else [9522102]) + ids[0],
+                    "no_expect_ids": ([9522102] if allowed else []) + ids[1],
                     "expect_interruption": not allowed,
                 }
             )
@@ -197,7 +248,11 @@ def coraza(directory, probe, private_peer=False):
                 str(fixture),
                 str(setup),
                 "wordpress-hardening-config.conf",
-                *(["ci-xff-probe-config.conf"] if private_peer else []),
+                *(
+                    ["ci-xff-probe-config.conf"]
+                    if (plugins / "ci-xff-probe-config.conf").exists()
+                    else []
+                ),
                 "wordpress-hardening-before.conf",
                 "wordpress-hardening-after.conf",
                 cwd=plugins,
@@ -232,7 +287,9 @@ def check_http(engine, mode, url, server, private_peer):
     else:
         raise AssertionError(run("docker", "logs", server))
     for case, header, private in peer_cases(private_peer):
-        allowed = (mode == "trusted" and private) or (private_peer and header is None)
+        allowed = (mode in ("trusted", "legacy") and private) or (
+            private_peer and header is None
+        )
         expected = 200 if allowed else 403
         actual = status("/xmlrpc.php", header)
         assert actual == expected, (
@@ -278,7 +335,7 @@ def docker(directory, engine, image, private_peer=False):
             + ":/etc/nginx/nginx.conf:ro",
             "nginx:alpine",
         )
-        for mode in ("default", "trusted", "untrusted"):
+        for mode in ("default", "trusted", "untrusted", "legacy", "unsupported"):
             plugins = directory / mode
             stage(plugins, mode, peer)
             server = name + "-" + mode
