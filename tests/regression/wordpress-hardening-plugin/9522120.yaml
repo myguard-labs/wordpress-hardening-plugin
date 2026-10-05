@@ -13,7 +13,8 @@ tests:
           headers: {Host: localhost, User-Agent: OWASP CRS}
           port: 80
           method: GET
-          uri: /wp-admin/admin-ajax.php?action=revslider_show_image&img=../wp-config.php
+          uri: >-
+            /wp-admin/admin-ajax.php?action=revslider_show_image&img=../wp-config.php
         output:
           log_contains: id "9522120"
   - test_title: 9522120-2
@@ -91,5 +92,325 @@ tests:
           port: 80
           method: GET
           uri: /wp-content/plugins/timth%2575mb.php
+        output:
+          no_log_contains: id "9522120"
+  - test_title: 9522120-94
+    desc: absolute URI authority containing timthumb.php is not a legacy probe
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: timthumb.php.example, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: http://timthumb.php.example/
+        output:
+          no_log_contains: id "9522120"
+  - test_title: 9522120-95
+    desc: single-encoded legacy probe in absolute URI path is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: http://example.test/wp-content/plugins/timth%75mb.php
+        output:
+          log_contains: id "9522120"
+  - test_title: 9522120-96
+    desc: Duplicator probe in absolute URI query is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: http://example.test/installer.php?dup-uninstall
+        output:
+          log_contains: id "9522120"
+  - test_title: 9522120-97
+    desc: double-encoded legacy probe in absolute URI path is not decoded twice
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: http://example.test/wp-content/plugins/timth%2575mb.php
+        output:
+          no_log_contains: id "9522120"
+  - test_title: 9522120-98
+    desc: benign search query mentioning timthumb.php is not a path probe
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /search?q=timthumb.php
+        output:
+          no_log_contains: id "9522120"
+  - test_title: 9522120-99
+    desc: benign outbound link query mentioning wp-symposium is not a path probe
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /out?to=/wp-symposium/
+        output:
+          no_log_contains: id "9522120"
+  - test_title: 9522120-100
+    desc: Slider Revolution action query still blocks
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: >-
+            /wp-admin/admin-ajax.php?action=revslider_show_image&img=../wp-config.php
+        output:
+          log_contains: id "9522120"
+  - test_title: 9522120-101
+    desc: benign search mention of Slider Revolution is not an action
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /search?q=revslider_show_image
+        output:
+          no_log_contains: id "9522120"
+  - test_title: 9522120-102
+    desc: query traversal to timthumb.php does not become a path probe
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /redirect?to=../../timthumb.php
+        output:
+          no_log_contains: id "9522120"
+  - test_title: 9522120-103
+    desc: encoded query traversal to timthumb.php does not become a path probe
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /redirect?to=%2e%2e/%2e%2e/timthumb.php
+        output:
+          no_log_contains: id "9522120"
+  - test_title: 9522120-104
+    desc: MailPoet path prefix with captcha only in query is benign
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /mailpoet/?q=wysija-captcha
+        output:
+          no_log_contains: id "9522120"
+  - test_title: 9522120-105
+    desc: File Manager prefix with connector only in query is benign
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-file-manager/?to=connector.minimal.php
+        output:
+          no_log_contains: id "9522120"
+  - test_title: 9522120-106
+    desc: Duplicator uninstall parameter with value is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /installer.php?dup-uninstall=1
+        output:
+          log_contains: id "9522120"
+  - test_title: 9522120-107
+    desc: Duplicator uninstall parameter after another parameter is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /installer.php?a=1&dup-uninstall
+        output:
+          log_contains: id "9522120"
+  - test_title: 9522120-108
+    desc: MailPoet captcha in path is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /mailpoet/x/wysija-captcha
+        output:
+          log_contains: id "9522120"
+  - test_title: 9522120-109
+    desc: File Manager connector in path is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-file-manager/x/connector.minimal.php
+        output:
+          log_contains: id "9522120"
+  - test_title: 9522120-110
+    desc: encoded ampersand in a value does not create Duplicator parameter
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /installer.php?a=1%26dup-uninstall
+        output:
+          no_log_contains: id "9522120"
+  - test_title: 9522120-111
+    desc: encoded ampersand and equals do not create revslider action
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/admin-ajax.php?x=1%26action%3Drevslider_show_image
+        output:
+          no_log_contains: id "9522120"
+  - test_title: 9522120-112
+    desc: encoded question mark does not create Duplicator query
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /installer.php%3Fdup-uninstall
+        output:
+          no_log_contains: id "9522120"
+  - test_title: 9522120-113
+    desc: encoded question mark does not create revslider query
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/admin-ajax.php%3Faction=revslider_show_image
+        output:
+          no_log_contains: id "9522120"
+  - test_title: 9522120-114
+    desc: encoded installer path with raw query parameter is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /inst%61ller.php?dup-uninstall=1
+        output:
+          log_contains: id "9522120"
+  - test_title: 9522120-115
+    desc: encoded action key with raw equals is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/admin-ajax.php?%61ction=revslider_show_image
+        output:
+          log_contains: id "9522120"
+  - test_title: 9522120-116
+    desc: double-encoded action key is not decoded twice
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/admin-ajax.php?%2561ction=revslider_show_image
+        output:
+          no_log_contains: id "9522120"
+  - test_title: 9522120-117
+    desc: uppercase action key is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/admin-ajax.php?ACTION=revslider_show_image
+        output:
+          log_contains: id "9522120"
+  - test_title: 9522120-118
+    desc: uppercase Duplicator key is blocked
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /installer.php?DUP-UNINSTALL=1
+        output:
+          log_contains: id "9522120"
+  - test_title: 9522120-119
+    desc: encoded action value is blocked once decoded
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/admin-ajax.php?action=revslider_show_%69mage
+        output:
+          log_contains: id "9522120"
+  - test_title: 9522120-120
+    desc: Slider Revolution signature in the path still blocks
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-content/plugins/revslider_show_image
+        output:
+          log_contains: id "9522120"
+  - test_title: 9522120-121
+    desc: encoded question mark does not make timthumb query a path probe
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /redirect%3Fto=timthumb.php
+        output:
+          no_log_contains: id "9522120"
+  - test_title: 9522120-122
+    desc: encoded ampersand and equals do not make a revslider path probe
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: example.test, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-admin/admin-ajax.php%26action%3Drevslider_show_image
         output:
           no_log_contains: id "9522120"
