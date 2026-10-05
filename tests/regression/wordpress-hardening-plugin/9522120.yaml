@@ -49,3 +49,47 @@ tests:
           uri: /installer-backup.php
         output:
           log_contains: id "9522120"
+  - test_title: 9522120-90
+    desc: raw-path-control for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-content/plugins/timthumb.php
+        output:
+          log_contains: id "9522120"
+  - test_title: 9522120-91
+    desc: single-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-content/plugins/timth%75mb.php
+        output:
+          log_contains: id "9522120"
+  - test_title: 9522120-92
+    desc: benign-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-content/plugins/timth%75mb.txt
+        output:
+          no_log_contains: id "9522120"
+  - test_title: 9522120-93
+    desc: double-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: GET
+          uri: /wp-content/plugins/timth%2575mb.php
+        output:
+          no_log_contains: id "9522120"

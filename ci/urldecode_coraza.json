@@ -1,0 +1,508 @@
+[
+  {
+    "name": "9522112-90",
+    "method": "GET",
+    "uri": "/wp-admin/load-scripts.php?load=jquery,jquery-ui-core,jquery-ui-widget,jquery-ui-mouse,jquery-ui-sortable,wp-pointer,wp-util,wp-a11y,wp-i18n",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522112
+    ]
+  },
+  {
+    "name": "9522112-91",
+    "method": "GET",
+    "uri": "/wp-admin/load-scr%69pts.php?load=jquery,jquery-ui-core,jquery-ui-widget,jquery-ui-mouse,jquery-ui-sortable,wp-pointer,wp-util,wp-a11y,wp-i18n",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522112
+    ]
+  },
+  {
+    "name": "9522112-92",
+    "method": "GET",
+    "uri": "/wp-admin/load-scr%69pts.php?load=jquery,common",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522112
+    ]
+  },
+  {
+    "name": "9522112-93",
+    "method": "GET",
+    "uri": "/wp-admin/load-scr%2569pts.php?load=jquery,jquery-ui-core,jquery-ui-widget,jquery-ui-mouse,jquery-ui-sortable,wp-pointer,wp-util,wp-a11y,wp-i18n",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522112
+    ]
+  },
+  {
+    "name": "9522113-90",
+    "method": "GET",
+    "uri": "/.env",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522113
+    ]
+  },
+  {
+    "name": "9522113-91",
+    "method": "GET",
+    "uri": "/%2eenv",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522113
+    ]
+  },
+  {
+    "name": "9522113-92",
+    "method": "GET",
+    "uri": "/%2eenv-guide",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522113
+    ]
+  },
+  {
+    "name": "9522113-93",
+    "method": "GET",
+    "uri": "/%252eenv",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522113
+    ]
+  },
+  {
+    "name": "9522114-90",
+    "method": "GET",
+    "uri": "/wp-config.php.save",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522114
+    ]
+  },
+  {
+    "name": "9522114-91",
+    "method": "GET",
+    "uri": "/wp-config.php.s%61ve",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522114
+    ]
+  },
+  {
+    "name": "9522114-92",
+    "method": "GET",
+    "uri": "/wp-config.php.s%61ve-guide",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522114
+    ]
+  },
+  {
+    "name": "9522114-93",
+    "method": "GET",
+    "uri": "/wp-config.php.s%2561ve",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522114
+    ]
+  },
+  {
+    "name": "9522115-90",
+    "method": "GET",
+    "uri": "/wp-content/plugins/akismet/readme.txt",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522115
+    ]
+  },
+  {
+    "name": "9522115-91",
+    "method": "GET",
+    "uri": "/wp-content/plugins/akismet/readm%65.txt",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522115
+    ]
+  },
+  {
+    "name": "9522115-92",
+    "method": "GET",
+    "uri": "/wp-content/plugins/akismet/readm%65.txt-guide",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522115
+    ]
+  },
+  {
+    "name": "9522115-93",
+    "method": "GET",
+    "uri": "/wp-content/plugins/akismet/readm%2565.txt",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522115
+    ]
+  },
+  {
+    "name": "9522117-90",
+    "method": "POST",
+    "uri": "/wp-json/sure-triggers/v1/connection/create-wp-connection",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "data": "{}\n",
+    "expect_ids": [
+      9522117
+    ]
+  },
+  {
+    "name": "9522117-91",
+    "method": "POST",
+    "uri": "/wp-json/sure-tr%69ggers/v1/connection/create-wp-connection",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "data": "{}\n",
+    "expect_ids": [
+      9522117
+    ]
+  },
+  {
+    "name": "9522117-92",
+    "method": "POST",
+    "uri": "/wp-json/sure-tr%69ggers/v2/health",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "data": "{}\n",
+    "no_expect_ids": [
+      9522117
+    ]
+  },
+  {
+    "name": "9522117-93",
+    "method": "POST",
+    "uri": "/wp-json/sure-tr%2569ggers/v1/connection/create-wp-connection",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "data": "{}\n",
+    "no_expect_ids": [
+      9522117
+    ]
+  },
+  {
+    "name": "9522118-90",
+    "method": "POST",
+    "uri": "/wp-json/bricks/v1/render_element",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "data": "{}\n",
+    "expect_ids": [
+      9522118
+    ]
+  },
+  {
+    "name": "9522118-91",
+    "method": "POST",
+    "uri": "/wp-json/br%69cks/v1/render_element",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "data": "{}\n",
+    "expect_ids": [
+      9522118
+    ]
+  },
+  {
+    "name": "9522118-92",
+    "method": "POST",
+    "uri": "/wp-json/br%69cks/v2/render_element",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "data": "{}\n",
+    "no_expect_ids": [
+      9522118
+    ]
+  },
+  {
+    "name": "9522118-93",
+    "method": "POST",
+    "uri": "/wp-json/br%2569cks/v1/render_element",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "data": "{}\n",
+    "no_expect_ids": [
+      9522118
+    ]
+  },
+  {
+    "name": "9522119-90",
+    "method": "PUT",
+    "uri": "/wp-login.php",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522119
+    ]
+  },
+  {
+    "name": "9522119-91",
+    "method": "PUT",
+    "uri": "/wp-log%69n.php",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522119
+    ]
+  },
+  {
+    "name": "9522119-92",
+    "method": "TRACE",
+    "uri": "/about%2ehtml",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522119
+    ]
+  },
+  {
+    "name": "9522119-93",
+    "method": "TRACE",
+    "uri": "/wp-log%2569n.php",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522119
+    ]
+  },
+  {
+    "name": "9522120-90",
+    "method": "GET",
+    "uri": "/wp-content/plugins/timthumb.php",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-91",
+    "method": "GET",
+    "uri": "/wp-content/plugins/timth%75mb.php",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-92",
+    "method": "GET",
+    "uri": "/wp-content/plugins/timth%75mb.txt",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522120-93",
+    "method": "GET",
+    "uri": "/wp-content/plugins/timth%2575mb.php",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522120
+    ]
+  },
+  {
+    "name": "9522121-90",
+    "method": "GET",
+    "uri": "/wp-admin/",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522121
+    ]
+  },
+  {
+    "name": "9522121-91",
+    "method": "GET",
+    "uri": "/wp-adm%69n/",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "expect_ids": [
+      9522121
+    ]
+  },
+  {
+    "name": "9522121-92",
+    "method": "GET",
+    "uri": "/about%2ehtml",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522121
+    ]
+  },
+  {
+    "name": "9522121-93",
+    "method": "GET",
+    "uri": "/wp-adm%2569n/",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS"
+    },
+    "no_expect_ids": [
+      9522121
+    ]
+  },
+  {
+    "name": "9522117-absolute-raw",
+    "method": "POST",
+    "uri": "http://localhost/wp-json/sure-triggers/v1/connection/create-wp-connection",
+    "headers": {
+      "Host": "localhost"
+    },
+    "expect_ids": [
+      9522117
+    ]
+  },
+  {
+    "name": "9522117-absolute-encoded",
+    "method": "POST",
+    "uri": "http://localhost/wp-json/sure-tr%69ggers/v1/connection/create-wp-connection",
+    "headers": {
+      "Host": "localhost"
+    },
+    "expect_ids": [
+      9522117
+    ]
+  },
+  {
+    "name": "9522117-absolute-double",
+    "method": "POST",
+    "uri": "http://localhost/wp-json/sure-tr%2569ggers/v1/connection/create-wp-connection",
+    "headers": {
+      "Host": "localhost"
+    },
+    "no_expect_ids": [
+      9522117
+    ]
+  },
+  {
+    "name": "9522118-absolute-raw",
+    "method": "POST",
+    "uri": "http://localhost/wp-json/bricks/v1/render_element",
+    "headers": {
+      "Host": "localhost"
+    },
+    "expect_ids": [
+      9522118
+    ]
+  },
+  {
+    "name": "9522118-absolute-encoded",
+    "method": "POST",
+    "uri": "http://localhost/wp-json/br%69cks/v1/render_element",
+    "headers": {
+      "Host": "localhost"
+    },
+    "expect_ids": [
+      9522118
+    ]
+  },
+  {
+    "name": "9522118-absolute-double",
+    "method": "POST",
+    "uri": "http://localhost/wp-json/br%2569cks/v1/render_element",
+    "headers": {
+      "Host": "localhost"
+    },
+    "no_expect_ids": [
+      9522118
+    ]
+  }
+]
