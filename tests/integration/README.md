@@ -57,6 +57,13 @@ access) come from the image's `MODSEC_*` environment variables, set in the
 compose file. DetectionOnly so go-ftw can drive every endpoint and assert on
 the audit log without traffic being 403'd.
 
+The Apache workflow also runs `python3 -m ci.check_block_mode` in a separate
+disposable container with `SecRuleEngine On`, PL2, and the production inbound
+threshold of 5. It enables the shipped plugin readme rule for one request,
+requires that rule's PL2 score marker and CRS threshold rule 949110 in the
+attack transaction, checks HTTP 403, and checks that the homepage stays 200.
+The shared DetectionOnly regression stack and XFF On-mode probes are unchanged.
+
 ## Run locally
 
 From the repo root:

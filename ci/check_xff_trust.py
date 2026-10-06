@@ -509,6 +509,7 @@ def docker(
     modes=("default", "trusted", "untrusted", "legacy", "unsupported", "textual"),
     prepare=stage,
     check=check_http,
+    environment=("MODSEC_RULE_ENGINE=On",),
 ):
     name = directory.parent.name.replace(".", "-") + "-" + directory.name
     network = name + "-net"
@@ -559,9 +560,10 @@ def docker(
                 "-e",
                 "PORT=8080",
                 "-e",
-                "MODSEC_RULE_ENGINE=On",
+                environment[0],
                 "-e",
                 "MODSEC_RESP_BODY_ACCESS=Off",
+                *(item for setting in environment[1:] for item in ("-e", setting)),
                 "-v",
                 str(plugins) + ":/etc/modsecurity.d/owasp-crs/plugins:ro",
                 image,
