@@ -117,65 +117,66 @@ class LintWorkflowTests(unittest.TestCase):
 
 
 class LintPipelineTests(unittest.TestCase):
-    def run_check(self, step_name, configs, data_files=()):
-        steps = yaml.safe_load(CALLER.read_text())["jobs"]["validate-files"]["steps"]
-        script = next(step["run"] for step in steps if step.get("name") == step_name)
+    def run_check(self, configs, data_files=(), test_ids=(9522000,)):
+        step = next(
+            step for step in yaml.safe_load(CALLER.read_text())["jobs"]["validate-files"]["steps"]
+            if step.get("name") == "Validate plugin file references and IDs"
+        )
+        self.assertEqual("bash scripts/ci-local.sh --validate-files", step["run"])
         with tempfile.TemporaryDirectory() as directory:
-            plugins = Path(directory) / "plugins"
-            plugins.mkdir()
+            root = Path(directory)
+            (root / "plugins").mkdir()
+            (root / "scripts").mkdir()
+            (root / "tests/regression/wordpress-hardening-plugin").mkdir(parents=True)
+            (root / "scripts/ci-local.sh").write_text((ROOT / "scripts/ci-local.sh").read_text())
+            subprocess.run(["git", "init", "-q", directory], check=True)
             for name, contents in configs.items():
-                (plugins / name).write_text(contents)
+                (root / "plugins" / name).write_text(contents)
             for name in data_files:
-                (plugins / name).write_text("fixture\n")
+                (root / "plugins" / name).write_text("fixture\n")
+            for rule_id in test_ids:
+                (root / "tests/regression/wordpress-hardening-plugin" / f"{rule_id}.yaml").write_text("test: true\n")
             return subprocess.run(
-                ["bash", "--noprofile", "--norc", "-c",
-                 "set +e\nset +o pipefail\n" + script],
-                cwd=directory, capture_output=True, text=True, check=False,
+                ["bash", "--noprofile", "--norc", "-c", step["run"]],
+                cwd=root, capture_output=True, text=True, check=False,
             )
 
-    def test_existing_pmfromfile_references_pass_without_errexit(self):
+    def test_valid_file_checks_pass(self):
         result = self.run_check(
-            "Check @pmFromFile references",
-            {"first.conf": '@pmFromFile "first.data"\n',
-             "second.conf": "@pmFromFile second.data\n"},
-            data_files=("first.data", "second.data"),
+            {"first.conf": 'id:9522000\n@pmFromFile "first.data"\n',
+             "second.conf": "id:9522999\n@pmFromFile second.data\n"},
+            data_files=("first.data", "second.data"), test_ids=(9522000, 9522999),
         )
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
-        self.assertIn("✓ All @pmFromFile references valid", result.stdout)
-        self.assertEqual("", result.stderr)
+        for marker in (
+            "all @pmFromFile targets exist",
+            "all rule IDs in range",
+            "no duplicate rule IDs",
+            "all test files map to a rule",
+            "CI-local: all checks passed",
+        ):
+            self.assertIn(marker, result.stdout)
 
-    def test_missing_pmfromfile_reference_fails_without_errexit(self):
-        result = self.run_check(
-            "Check @pmFromFile references",
-            {"fixture.conf": '@pmFromFile "missing.data"\n'},
-        )
-        self.assertNotEqual(0, result.returncode, result.stdout + result.stderr)
-        self.assertIn("ERROR: Referenced file not found: missing.data", result.stdout)
-        self.assertNotIn("✓ All @pmFromFile references valid", result.stdout)
-        self.assertEqual("", result.stderr)
+    def test_missing_quoted_reference_fails(self):
+        result = self.run_check({"fixture.conf": 'id:9522000\n@pmFromFile "missing.data"\n'})
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("referenced file not found: missing.data", result.stdout)
 
-    def test_boundary_rule_ids_in_multiple_files_pass_without_errexit(self):
-        result = self.run_check(
-            "Check Rule ID ranges",
-            {"first.conf": "id:9522000\n", "second.conf": "id:9522999\n"},
-        )
-        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
-        self.assertIn("✓ All Rule IDs in valid range", result.stdout)
-        self.assertEqual("", result.stderr)
+    def test_rule_id_boundaries_and_duplicates_fail(self):
+        for config, error in (
+            ({"first.conf": "id:9521999\n", "second.conf": "id:9522000\n"}, "outside allocated range"),
+            ({"first.conf": "id:9523000\n", "second.conf": "id:9522000\n"}, "outside allocated range"),
+            ({"first.conf": "id:9522000\n", "second.conf": "id:9522000\n"}, "duplicate rule IDs"),
+        ):
+            with self.subTest(error=error, config=config):
+                result = self.run_check(config)
+                self.assertNotEqual(0, result.returncode)
+                self.assertIn(error, result.stdout)
 
-    def test_outside_rule_ids_fail_without_errexit(self):
-        for rule_id in (9521999, 9523000):
-            with self.subTest(rule_id=rule_id):
-                result = self.run_check(
-                    "Check Rule ID ranges",
-                    {"first.conf": f"id:{rule_id}\n", "second.conf": "id:9522000\n"},
-                )
-                self.assertNotEqual(0, result.returncode, result.stdout + result.stderr)
-                self.assertIn(
-                    f"ERROR: Rule ID {rule_id} outside allocated range", result.stdout
-                )
-                self.assertNotIn("✓ All Rule IDs in valid range", result.stdout)
-                self.assertEqual("", result.stderr)
+    def test_missing_test_rule_fails(self):
+        result = self.run_check({"fixture.conf": "id:9522000\n"}, test_ids=(9522001,))
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("references missing rule 9522001", result.stdout)
 
 
 if __name__ == "__main__":

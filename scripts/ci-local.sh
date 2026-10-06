@@ -16,12 +16,25 @@ cd "$REPO_ROOT" || {
   printf 'CI-local: cannot enter repository root: %s\n' "$REPO_ROOT" >&2
   exit 1
 }
+# Git hooks export their repository context. Child Git commands in CI tests
+# create fixture repositories and must use their own configuration and cwd.
+for git_var in ${!GIT_@}; do
+  unset "$git_var"
+done
+
+MODE=${1:-all}
+case "$MODE" in
+  all|--validate-files|--validate-gates) ;;
+  *) printf 'CI-local: unknown mode: %s\n' "$MODE" >&2; exit 2 ;;
+esac
+[ "$#" -le 1 ] || { printf 'CI-local: expected at most one mode\n' >&2; exit 2; }
 
 FAIL=0
 note() { printf '\n=== %s ===\n' "$1"; }
 ok()   { printf '  \xe2\x9c\x93 %s\n' "$1"; }
 err()  { printf '  ERROR: %s\n' "$1"; FAIL=1; }
 
+if [ "$MODE" = all ]; then
 note "PHP PATH_INFO origin behavior"
 if bash ci/test_static_pathinfo_origins.sh; then
   ok "Apache and nginx PHP PATH_INFO behavior"
@@ -53,10 +66,13 @@ else
   err "sensitive file boundary unit tests failed"
 fi
 
+fi
+
+if [ "$MODE" != --validate-gates ]; then
 # ── lint.yml: @pmFromFile references resolve ────────────────────────────────
 note "pmFromFile references"
 while read -r line; do
-  f=$(printf '%s' "$line" | sed -n 's/.*@pmFromFile \([^ "]*\).*/\1/p')
+  f=$(printf '%s' "$line" | sed -nE 's/.*@pmFromFile "?([^ "]*).*/\1/p')
   [ -n "$f" ] && [ ! -f "plugins/$f" ] && err "referenced file not found: $f"
 done < <(grep -rh "@pmFromFile" plugins/*.conf)
 [ "$FAIL" -eq 0 ] && ok "all @pmFromFile targets exist"
@@ -64,11 +80,11 @@ done < <(grep -rh "@pmFromFile" plugins/*.conf)
 # ── lint.yml: rule IDs within allocated range ───────────────────────────────
 note "rule ID range 9522000-9522999"
 RANGE_BAD=0
-for id in $(grep -oh 'id:[0-9]*' plugins/*.conf | cut -d: -f2); do
+while IFS= read -r id; do
   if [ "$id" -lt 9522000 ] || [ "$id" -gt 9522999 ]; then
     err "rule ID $id outside allocated range"; RANGE_BAD=1
   fi
-done
+done < <(grep -oh 'id:[0-9]*' plugins/*.conf | cut -d: -f2)
 [ "$RANGE_BAD" -eq 0 ] && ok "all rule IDs in range"
 
 # ── lint.yml: no duplicate rule IDs ─────────────────────────────────────────
@@ -85,6 +101,7 @@ for t in tests/regression/wordpress-hardening-plugin/*.yaml; do
 done
 [ "$MAP_BAD" -eq 0 ] && ok "all test files map to a rule"
 
+if [ "$MODE" = all ]; then
 # ── plugin-lint / check-syntax: CRS secrules-parsing correctness ────────────
 note "ModSecurity syntax (secrules-parsing -c)"
 if ! python3 -c "import secrules_parsing" 2>/dev/null; then
@@ -99,7 +116,11 @@ if python3 -c "import secrules_parsing" 2>/dev/null; then
   printf '%s' "$OUT" | grep -qi 'invalid' && err "secrules-parsing reported invalid syntax"
   [ "$FAIL" -eq 0 ] && ok "secrules-parsing: all files OK"
 fi
+fi
 
+fi
+
+if [ "$MODE" != --validate-files ]; then
 # ── integration.yml: skipAfter only on chain-starter rules ──────────────────
 note "no skipAfter on chained (inner) rules  [AH00526 guard]"
 if ! awk -f ci/check_chained_skipafter.awk plugins/*.conf; then
@@ -111,9 +132,9 @@ fi
 # ── skipAfter targets resolve to a SecMarker ────────────────────────────────
 note "skipAfter targets resolve to a SecMarker"
 SA_MISS=0
-for label in $(grep -ohE 'skipAfter:[A-Za-z0-9_]+' plugins/*.conf | cut -d: -f2 | sort -u); do
+while IFS= read -r label; do
   grep -qE "SecMarker \"?${label}\"?" plugins/*.conf || { err "skipAfter:${label} has no matching SecMarker"; SA_MISS=1; }
-done
+done < <(grep -ohE 'skipAfter:[A-Za-z0-9_]+' plugins/*.conf | cut -d: -f2 | sort -u)
 [ "$SA_MISS" -eq 0 ] && ok "all skipAfter targets resolve"
 
 # ── file-extension regexes use an escaped dot  [9522203 class] ──────────────
@@ -134,7 +155,7 @@ fi
 # is dead code; and a BEGIN_X must always have its END_X.
 note "markers well-formed and reachable"
 GP_BAD=0
-for end in $(grep -ohE 'SecMarker "END_[A-Z0-9_]+"' plugins/*.conf | sed 's/SecMarker "//;s/"//'); do
+while IFS= read -r end; do
   begin="BEGIN_${end#END_}"
   if grep -qE "SecMarker \"${begin}\"" plugins/*.conf; then
     : # paired feature gate — fine
@@ -143,11 +164,11 @@ for end in $(grep -ohE 'SecMarker "END_[A-Z0-9_]+"' plugins/*.conf | sed 's/SecM
     grep -qE "skipAfter:${end}\b" plugins/*.conf || { err "${end} has no BEGIN_ and no skipAfter targets it (dead marker)"; GP_BAD=1; }
   fi
   grep -qE "skipAfter:${end}\b" plugins/*.conf || { err "${end} never targeted by a skipAfter (dead gate)"; GP_BAD=1; }
-done
-for begin in $(grep -ohE 'SecMarker "BEGIN_[A-Z0-9_]+"' plugins/*.conf | sed 's/SecMarker "//;s/"//'); do
+done < <(grep -ohE 'SecMarker "END_[A-Z0-9_]+"' plugins/*.conf | sed 's/SecMarker "//;s/"//')
+while IFS= read -r begin; do
   end="END_${begin#BEGIN_}"
   grep -qE "SecMarker \"${end}\"" plugins/*.conf || { err "${begin} has no matching ${end}"; GP_BAD=1; }
-done
+done < <(grep -ohE 'SecMarker "BEGIN_[A-Z0-9_]+"' plugins/*.conf | sed 's/SecMarker "//;s/"//')
 [ "$GP_BAD" -eq 0 ] && ok "all markers well-formed and reachable"
 
 # ── integration.yml: gate markers enclose their blocking rules ──────────────
@@ -156,6 +177,14 @@ if awk -f ci/check_gate_coverage.awk plugins/*.conf; then
   ok "all required rules enclosed by gate markers"
 else
   err "gate marker coverage failed"
+fi
+
+fi
+
+if [ "$MODE" != all ]; then
+  [ "$FAIL" -eq 0 ] || { printf "CI-local: FAILED\n"; exit 1; }
+  printf "CI-local: all checks passed\n"
+  exit 0
 fi
 
 # ── regression YAML well-formed ─────────────────────────────────────────────
