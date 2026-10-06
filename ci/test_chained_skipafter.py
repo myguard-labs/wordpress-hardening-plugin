@@ -74,6 +74,30 @@ class ChainedSkipAfterTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("chained skipAfter", result.stdout)
 
+    def test_chain_in_quoted_message_does_not_start_chain(self):
+        result = self.run_guard(
+            'SecRule REQUEST_URI "@contains /probe" "id:9522998,msg:\'Block chain probe\'"\n'
+            'SecRule REQUEST_METHOD "@streq GET" "skipAfter:END_PROBE"\n'
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_skipafter_in_quoted_message_is_not_an_action(self):
+        result = self.run_guard(
+            'SecRule REQUEST_URI "@contains /probe" "id:9522999,chain"\n'
+            'SecRule REQUEST_METHOD "@streq GET" "msg:\'see skipAfter:END_X\'"\n'
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_quoted_message_with_comma_before_real_actions(self):
+        result = self.run_guard(
+            'SecRule REQUEST_URI "@contains /probe" '
+            "\"msg:'chain, skipAfter:END_X',chain\"\n"
+            'SecRule REQUEST_METHOD "@streq GET" '
+            "\"msg:'skipAfter:END_X, chain',skipAfter:END_PROBE\"\n"
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("chained skipAfter", result.stdout)
+
     def test_flush_left_multiline_inner_skipafter_fails(self):
         rules = STARTER + INNER.replace(
             '"t:none,chain"', '"t:none,skipAfter:END_PROBE,chain"'
