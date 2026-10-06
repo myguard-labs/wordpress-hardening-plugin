@@ -205,8 +205,9 @@ def expected_address(header):
 
 def parser_cases():
     # Run the same differential corpus on PCRE/PCRE2 and RE2, not just Python re.
-    headers = set(address_corpus())
-    for header in address_corpus():
+    corpus = address_corpus()
+    headers = set(corpus)
+    for header in corpus:
         headers.add("[" + header + "]:443")
         if expected_address(header) is not None and ":" in header and "[" not in header:
             headers.update({"[" + header + "]", header + " , 8.8.8.8"})
@@ -347,7 +348,7 @@ def parser_transactions(mode, peer):
     for name, header, address in parser_cases():
         accepted = mode in ("trusted", "legacy") and address is not None
         yield {
-            "name": mode + ":" + name,
+            "name": mode + ":" + name + ":" + repr(header),
             "uri": "/xff-parser-probe",
             "client_ip": peer,
             "headers": {

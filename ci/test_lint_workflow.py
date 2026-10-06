@@ -67,6 +67,22 @@ class RunBlocksTests(unittest.TestCase):
 
 
 class LintWorkflowTests(unittest.TestCase):
+    def test_go_is_ready_before_python_unit_tests(self):
+        steps = yaml.safe_load(CALLER.read_text())["jobs"]["validate-files"]["steps"]
+        checkout, setup_go, unit_tests = steps[:3]
+        self.assertTrue(checkout["uses"].startswith("actions/checkout@"))
+        self.assertEqual(
+            "actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff",
+            setup_go["uses"],
+        )
+        self.assertNotIn("if", setup_go)
+        self.assertEqual("stable", setup_go["with"]["go-version"])
+        self.assertEqual(
+            "tests/coraza/go.sum", setup_go["with"]["cache-dependency-path"]
+        )
+        self.assertEqual("CI unit tests", unit_tests["name"])
+        self.assertIn("-m unittest", unit_tests["run"])
+
     def test_plugin_lint_uses_local_reusable_workflow(self):
         caller = CALLER.read_text()
         job = re.search(r"(?ms)^  plugin-lint:\n(?P<body>(?:^    .*\n|^$)*)", caller)

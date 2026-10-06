@@ -1,6 +1,10 @@
 """Check XFF engine fixtures and CRS image selection without Docker."""
 
+import hashlib
+import json
 import os
+import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,6 +14,62 @@ from ci import check_xff_trust
 
 
 class XffTrustTests(unittest.TestCase):
+    def test_parser_cases_reuse_corpus_and_preserve_order(self):
+        with mock.patch.object(
+            check_xff_trust, "address_corpus", wraps=check_xff_trust.address_corpus
+        ) as corpus:
+            cases = list(check_xff_trust.parser_cases())
+        self.assertEqual(1, corpus.call_count)
+        self.assertEqual(973, len(cases))
+        self.assertEqual(
+            "565dba030907b0a82ea6604b56b674b1bae4a9f72e138745678c589d78dc7c2a",
+            hashlib.sha256(json.dumps(cases, sort_keys=True).encode()).hexdigest(),
+        )
+
+    def test_parser_transaction_name_includes_header_representation(self):
+        cases = check_xff_trust.parser_transactions("trusted", "198.18.0.1")
+        case = next(
+            case for case in cases if case["headers"]["X-Forwarded-For"] == "[::1]:443"
+        )
+        self.assertIn("'[::1]:443'", case["name"])
+
+    def test_failing_coraza_parser_case_names_header_without_fixture(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            for name in ("main.go", "go.mod", "go.sum"):
+                shutil.copyfile(
+                    check_xff_trust.ROOT / "tests/coraza" / name, directory / name
+                )
+            probe = directory / "coraza-probe"
+            subprocess.run(
+                ["go", "build", "-mod=readonly", "-o", str(probe), "."],
+                cwd=directory,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            fixture = directory / "transactions.json"
+            case = next(
+                case
+                for case in check_xff_trust.parser_transactions("trusted", "198.18.0.1")
+                if case["headers"]["X-Forwarded-For"] == "[::1]:443"
+            )
+            case["expect_ids"] = [9999999]  # Force the probe's named failure path.
+            fixture.write_text(json.dumps([case]))
+            setup = directory / "setup.conf"
+            setup.write_text('SecDefaultAction "phase:2,log,deny,status:403"\n')
+            result = subprocess.run(
+                [str(probe), "-tx", str(fixture), str(setup)],
+                cwd=directory,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            fixture.unlink()
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("FAIL " + case["name"], result.stdout, result.stderr)
+            self.assertIn("'[::1]:443'", result.stdout)
+
     def test_private_proxy_cases_include_malformed_headers_when_trusted(self):
         cases = check_xff_trust.peer_cases(True)
         self.assertIn(("private-peer-empty-XFF", "", False), cases)
