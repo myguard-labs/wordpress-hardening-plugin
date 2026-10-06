@@ -214,3 +214,135 @@ tests:
           uri: http://localhost/r%2565adme.html
         output:
           no_log_contains: id "9522100"
+  - test_title: 9522100-20
+    desc: Installer trailing slash remains protected
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /wp-admin/install.php/
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-21
+    desc: Installer PATH_INFO remains protected
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /wp-admin/install.php/extra
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-22
+    desc: Setup PATH_INFO remains protected
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /wp-admin/setup-config.php/extra
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-23
+    desc: Installer PATH_INFO with a static suffix remains protected
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /wp-admin/install.php/extra.css
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-24
+    desc: Encoded installer filename with PATH_INFO remains protected
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /wp-admin/install%2ephp/extra
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-25
+    desc: Setup PATH_INFO with a query remains protected
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /wp-admin/setup-config.php/extra?mode=check
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-26
+    desc: Negative - installer filename near-miss
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /wp-admin/install.php.bak
+        output:
+          no_log_contains: id "9522100"
+  - test_title: 9522100-27
+    desc: Negative - setup filename near-miss with a suffix
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /wp-admin/setup-config.php.bak/extra
+        output:
+          no_log_contains: id "9522100"
+  - test_title: 9522100-28
+    desc: Negative - non-executable file with trailing slash
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /readme.html/
+        output:
+          no_log_contains: id "9522100"
+  - test_title: 9522100-29
+    desc: Negative - non-executable file with a suffix
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /wp-content/debug.log/extra
+        output:
+          no_log_contains: id "9522100"
+  - test_title: 9522100-30
+    desc: Negative - double-encoded installer filename
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /wp-admin/install%252ephp/extra
+        output:
+          no_log_contains: id "9522100"
+  - test_title: 9522100-31
+    desc: Negative - PATH_INFO appears only in the query
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /search?path=/wp-admin/install.php/extra
+        output:
+          no_log_contains: id "9522100"

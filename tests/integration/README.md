@@ -34,6 +34,18 @@ after them. Base-only selection tests leave the IP file present but unincluded.
 Restage after editing either source tree,
 then restart the WAF services to load the new rules.
 
+The shipped `block_plugin_readme` default remains `0`; the shared CI fixture
+explicitly enables it for rule 9522115 tests. `ci/test_info_leak_paths.py` and
+the Coraza default fixture load the shipped rules without that override and
+assert the disabled behavior. The unit suite also checks that explicit opt-in
+still enables the rule.
+
+Rule 9522100 tests cover installer PHP PATH_INFO suffixes, exact non-executable
+files, filename near-misses, and the existing raw-path single-decode behavior.
+The tests assert the specific rule ID: other plugin rules may independently
+match a filename near-miss. All engine cases use inert requests and a stub
+origin; they do not run a WordPress installer.
+
 go-ftw's `X-CRS-Test` markers are recorded by audit part B directly. A
 separate marker rule duplicates them in part H and can make go-ftw capture a
 partially written marker line, breaking exact start/end matching.
