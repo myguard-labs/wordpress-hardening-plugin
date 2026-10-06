@@ -9,11 +9,8 @@ testoverride:
     port: 8001
     override_empty_host_header: true
   # Apache + mod_security2 exclusions. Each reason names a tracked row and
-  # the observed mismatch; ci/check_ftw_positives.py locks these six IDs.
+  # the observed mismatch; ci/check_ftw_positives.py locks these five IDs.
   ignore:
-    "9522120-1": >-
-      R6-APACHE-9522120: revslider image traversal payload does not log
-      9522120 on Apache
     "9522205-2": >-
       R6-APACHE-9522205: long uploads PHP path does not log 9522205 on
       Apache
