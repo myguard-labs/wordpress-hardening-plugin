@@ -20,7 +20,7 @@ NO_POSITIVE_RULES = {
 # The YAML is the sole list of IDs and reasons; this approval fingerprint makes
 # any added or substituted ignore fail CI until it is explicitly reviewed.
 APACHE_IGNORE_IDS_SHA256 = (
-    "83f4e5c701c0ccca7184744497a480e13d5778c485add299a33762c455fdfd99"
+    "0bba25a5a08e271f737719b1ce847e06e1b870fb3fedf23c3194f77937640f67"
 )
 ISSUE_REASON = re.compile(r"^R6-[A-Z0-9-]+: \S.{15,}$")
 
