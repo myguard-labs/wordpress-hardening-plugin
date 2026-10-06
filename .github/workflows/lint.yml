@@ -23,6 +23,11 @@ jobs:
         with:
           persist-credentials: false
 
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+        with:
+          go-version: stable
+          cache-dependency-path: tests/coraza/go.sum
+
       - name: CI unit tests
         run: |
           python3 -m venv "$RUNNER_TEMP/plugin-lint-venv"
