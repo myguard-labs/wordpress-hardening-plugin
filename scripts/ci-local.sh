@@ -152,26 +152,11 @@ done
 
 # ── integration.yml: gate markers enclose their blocking rules ──────────────
 note "gate marker coverage"
-gate_check() { # marker  ruleid
-  if grep -q "$1" plugins/*.conf && grep -A 50 "$1" plugins/*.conf | grep -q "id:$2"; then
-    ok "$2 within $1"
-  else
-    err "$2 not enclosed by $1"
-  fi
-}
-gate_check BEGIN_WPHARD_BLOCK_REST_API_ROOT 9522207
-gate_check BEGIN_WPHARD_BLOCK_EDITOR_ACCESS  9522301
-gate_check BEGIN_WPHARD_BLOCK_BACKUP_FILES   9522303
-gate_check BEGIN_WPHARD_BLOCK_DB_FILES       9522305
-gate_check BEGIN_WPHARD_BLOCK_UPLOAD_TRAVERSAL 9522307
-gate_check BEGIN_WPHARD_BLOCK_NULL_BYTES     9522309
-gate_check BEGIN_WPHARD_BLOCK_SCANNERS       9522311
-gate_check BEGIN_WPHARD_BLOCK_DEBUG_PROBES   9522313
-gate_check BEGIN_WPHARD_BLOCK_LOGIN_INJECTION 9522315
-gate_check BEGIN_WPHARD_BLOCK_DANGEROUS_ADMIN 9522317
-gate_check BEGIN_WPHARD_RATELIMIT_LOGIN      9522411
-gate_check BEGIN_WPHARD_GEOIP_LOGIN          9522510
-gate_check BEGIN_WPHARD_IP_REPUTATION        9522603
+if awk -f ci/check_gate_coverage.awk plugins/*.conf; then
+  ok "all required rules enclosed by gate markers"
+else
+  err "gate marker coverage failed"
+fi
 
 # ── regression YAML well-formed ─────────────────────────────────────────────
 note "regression YAML parses"
