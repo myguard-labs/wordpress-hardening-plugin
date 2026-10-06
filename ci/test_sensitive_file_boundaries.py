@@ -9,8 +9,11 @@ ROOT = Path(__file__).resolve().parents[1]
 RULES = (ROOT / 'plugins/wordpress-hardening-before.conf').read_text()
 DATA = (ROOT / 'plugins/wordpress-hardening-files.data').read_text()
 EXCEPTIONS = (
+    '/blog/wp-config-guide',
     '/blog/wp-config-guide/',
+    '/nginx.conf-tutorial',
     '/nginx.conf-tutorial/',
+    '/wp-content/mu-plugins-info',
     '/wp-content/mu-plugins-info/',
     '/wp-config-staging.php',
 )
@@ -55,6 +58,15 @@ class TestSensitiveFileBoundaries(unittest.TestCase):
                 self.assertTrue(self.matches(path + '.bak'), path)
                 self.assertTrue(self.matches('/wp-config.php' + path), path)
                 self.assertTrue(self.matches('/wp-admin/install.php' + path), path)
+
+    def test_article_aliases_do_not_exempt_nested_or_nearby_names(self):
+        for path in EXCEPTIONS:
+            with self.subTest(path=path):
+                self.assertTrue(self.matches('/extra' + path), path)
+                self.assertTrue(self.matches(path + '/extra'), path)
+                self.assertTrue(self.matches(path + '%00'), path)
+                self.assertTrue(self.matches(path + '%GG'), path)
+        self.assertTrue(self.matches('/wp-config-staging.php/'))
 
     def test_reviewed_cross_product_and_repeated_stacks(self):
         for path in (

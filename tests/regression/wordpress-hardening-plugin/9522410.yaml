@@ -6,7 +6,7 @@ meta:
   name: 9522410.yaml
 tests:
   - test_title: 9522410-1
-    desc: Test that login attempt from non-whitelisted IP (8.8.8.8) is tracked (counter increment rule 9522411)
+    desc: Counter ticks silently for a non-whitelisted login; 9522412 tests the threshold.
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -20,7 +20,7 @@ tests:
           uri: /wp-login.php
           data: log=admin&pwd=wrong
         output:
-          log_contains: id "9522411"
+          no_log_contains: id "9522411"
 
   - test_title: 9522410-2
     desc: Test that login attempt from localhost (127.0.0.1) is NOT tracked (whitelist rule 9522410)
@@ -91,7 +91,7 @@ tests:
           log_not_contains: id "9522411"
 
   - test_title: 9522410-6
-    desc: Test that rate limiting gate check works (rule 9522400 gates all rate limiting)
+    desc: Rate-limit gate permits a silent counter tick; 9522412 tests the threshold.
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -105,8 +105,7 @@ tests:
           uri: /wp-login.php
           data: log=user&pwd=pass
         output:
-          # Should log tracking (gate allows it to continue)
-          log_contains: id "9522411"
+          no_log_contains: id "9522411"
 
   - test_title: 9522410-7
     desc: Test that non-login POST requests are NOT tracked by rate limiting

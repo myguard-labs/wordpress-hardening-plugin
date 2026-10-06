@@ -65,6 +65,13 @@ class TestMethodCase(unittest.TestCase):
                 with self.subTest(rule_id=rule_id, method=method):
                     self.assertFalse(matches_method(RATELIMIT, rule_id, method))
 
+    def test_login_tick_is_silent_and_threshold_is_diagnostic(self):
+        _, actions = method_rule(RATELIMIT, 9522411)
+        self.assertRegex(actions, r"\bnolog,")
+        self.assertNotRegex(actions, r"\b(?:log|auditlog),")
+        threshold = RATELIMIT.split("id:9522412,", 1)[1]
+        self.assertIn("msg:'Wordpress hardening: wp-login.php rate limit exceeded", threshold)
+
 
 if __name__ == "__main__":
     unittest.main()

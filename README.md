@@ -10,6 +10,15 @@ It's encouraged to install the wordpress-exclusions-rules-plugin as well, as we 
 
 The idea is to enhance the security of WordPress while minimizing the impact on PHP/SQL performance and eliminating the need for additional wordpress security plugins without interfering with wordpress or owasp.
 
+Rule `9522202` allows the exact article paths `/blog/wp-config-guide`,
+`/nginx.conf-tutorial`, and `/wp-content/mu-plugins-info` with or without a
+trailing slash, so the origin can canonicalize their URLs. WordPress
+[canonical redirects](https://developer.wordpress.org/reference/functions/redirect_canonical/)
+follow the configured permalink style. These exceptions do not cover nested
+paths or filename suffixes. The separate `/wp-config-staging.php` exception
+remains exact. Login rate-limit counters run silently; threshold violations
+and the compression and response-header diagnostics still log.
+
 What this plugin does so far:
 - Block xmlrpc.php access (configurable, default: block) (PL1)
 - Block user enumeration (configurable, default: block) (PL1)

@@ -822,3 +822,135 @@ tests:
           uri: /wp-config-staging.php.bak
         output:
           log_contains: id "9522202"
+  - test_title: 9522202-100
+    desc: exact article alias reaches origin
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /blog/wp-config-guide
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-101
+    desc: exact article alias reaches origin
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /nginx.conf-tutorial
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-102
+    desc: exact article alias reaches origin
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /wp-content/mu-plugins-info
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-103
+    desc: exact article alias reaches origin
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /blog/wp-config-guide?source=article
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-104
+    desc: exact article alias reaches origin
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /nginx.conf-tutorial?source=article
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-105
+    desc: exact article alias reaches origin
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /wp-content/mu-plugins-info?source=article
+        output:
+          no_log_contains: id "9522202"
+  - test_title: 9522202-106
+    desc: article alias boundary stays protected
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /blog/wp-config-guide.bak
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-107
+    desc: article alias boundary stays protected
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /nginx.conf-tutorial.bak
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-108
+    desc: article alias boundary stays protected
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /wp-content/mu-plugins-info.bak
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-109
+    desc: article alias boundary stays protected
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /extra/blog/wp-config-guide
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-110
+    desc: article alias boundary stays protected
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /extra/nginx.conf-tutorial
+        output:
+          log_contains: id "9522202"
+  - test_title: 9522202-111
+    desc: article alias boundary stays protected
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /extra/wp-content/mu-plugins-info
+        output:
+          log_contains: id "9522202"
