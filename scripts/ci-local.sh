@@ -16,6 +16,11 @@ cd "$REPO_ROOT" || {
   printf 'CI-local: cannot enter repository root: %s\n' "$REPO_ROOT" >&2
   exit 1
 }
+# Git hooks export their repository context. Child Git commands in CI tests
+# create fixture repositories and must use their own configuration and cwd.
+for git_var in ${!GIT_@}; do
+  unset "$git_var"
+done
 
 MODE=${1:-all}
 case "$MODE" in

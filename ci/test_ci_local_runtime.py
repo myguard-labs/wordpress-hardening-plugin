@@ -2,6 +2,7 @@
 
 import os
 import select
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -79,6 +80,55 @@ class CiLocalRootTests(unittest.TestCase):
                     self.assertNotEqual(0, invalid.returncode)
                     self.assertIn("cannot resolve repository root", invalid.stderr)
                     self.assertNotIn("CHECKS_STARTED", invalid.stdout)
+
+    def test_hook_git_environment_is_not_inherited_by_child_git(self):
+        with tempfile.TemporaryDirectory() as directory:
+            scratch = Path(directory)
+            hook_repo = scratch / "hook-repo"
+            hook_repo.mkdir()
+            clean_env = {name: value for name, value in os.environ.items()
+                         if not name.startswith("GIT_")}
+            subprocess.run(["git", "init", "-q", str(hook_repo)], env=clean_env,
+                           check=True, capture_output=True, text=True)
+            git_executable = shutil.which("git")
+            self.assertIsNotNone(git_executable)
+            git_stub = scratch / "git"
+            git_stub.write_text(
+                '#!/bin/sh\n'
+                'if [ "$1" = rev-parse ]; then\n'
+                f'  printf "%s\\n" "{ROOT}"\n'
+                'else\n'
+                f'  exec "{git_executable}" "$@"\n'
+                'fi\n'
+            )
+            git_stub.chmod(0o755)
+            child_repo = scratch / "child-repo"
+            startup = SCRIPT.read_text().split("\nFAIL=0\n", 1)[0]
+            env = {
+                **clean_env,
+                "PATH": str(scratch) + os.pathsep + clean_env["PATH"],
+                "GIT_DIR": str(hook_repo / ".git"),
+                "GIT_WORK_TREE": str(hook_repo),
+                "GIT_PREFIX": "plugins/",
+                "GIT_CONFIG_COUNT": "1",
+                "GIT_CONFIG_KEY_0": "user.name",
+                "GIT_CONFIG_VALUE_0": "hook-user",
+            }
+            result = subprocess.run(
+                ["bash", "-c", startup + '\n'
+                 'if env | grep -q "^GIT_"; then '
+                 'printf "Git hook environment leaked\\n" >&2; exit 88; fi\n'
+                 'git init -q "$CI_CHILD_REPO"\n'],
+                cwd=ROOT / "plugins", env={**env, "CI_CHILD_REPO": str(child_repo)},
+                capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertTrue((child_repo / ".git").is_dir(), result.stdout + result.stderr)
+            hook_bare = subprocess.run(
+                [git_executable, "-C", str(hook_repo), "config", "--local", "--get", "core.bare"],
+                env=clean_env, capture_output=True, text=True, check=True,
+            )
+            self.assertEqual("false", hook_bare.stdout.strip())
 
 
 class CiLocalYamlTempTests(unittest.TestCase):
