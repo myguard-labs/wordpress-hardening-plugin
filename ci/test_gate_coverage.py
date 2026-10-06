@@ -69,6 +69,35 @@ class GateCoverageTests(unittest.TestCase):
         result = check(fixture())
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_multiline_rule_actions_pass(self):
+        lines = fixture()
+        lines[4:5] = [
+            'SecRule ARGS "@rx x" \\',
+            '  "id:9522301,\\',
+            '  phase:2"',
+        ]
+        result = check(lines)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_deleted_rule_with_id_comment_fails(self):
+        lines = fixture()
+        lines[4] = '# Removed SecRule; id:9522301 was here'
+        result = check(lines)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("rule 9522301 must occur exactly once between", result.stderr)
+
+    def test_id_outside_rule_action_fails(self):
+        for replacement in (
+            'SecRule ARGS "@rx id:9522301" "phase:2"',
+            'SecRule ARGS "@rx x" "phase:2" # id:9522301',
+        ):
+            with self.subTest(replacement=replacement):
+                lines = fixture()
+                lines[4] = replacement
+                result = check(lines)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("rule 9522301 must occur exactly once between", result.stderr)
+
     def test_end_before_rule_fails(self):
         lines = fixture()
         lines[4], lines[5] = lines[5], lines[4]

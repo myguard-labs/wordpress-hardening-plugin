@@ -16,6 +16,27 @@ BEGIN {
     required[9522603] = "WPHARD_IP_REPUTATION"
 }
 
+function count_rule_actions(    quoted, actions, fields, count, i, action, id) {
+    # The ID must be an action of a SecRule, not a comment or operator pattern.
+    if (rule_text !~ /^[[:space:]]*SecRule[[:space:]]+[^[:space:]]+[[:space:]]+"[^"]*"[[:space:]]+"[^"]*"/)
+        return
+    split(rule_text, quoted, "\"")
+    actions = quoted[4]
+    count = split(actions, fields, ",")
+    for (i = 1; i <= count; i++) {
+        action = fields[i]
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", action)
+        if (action ~ /^id:[0-9]+$/) {
+            id = substr(action, 4)
+            if (id in required) {
+                rule_count[id]++
+                rule_file[id] = FILENAME
+                rule_line[id] = rule_start
+            }
+        }
+    }
+}
+
 /^[[:space:]]*SecMarker "(BEGIN|END)_WPHARD_[A-Z0-9_]+"/ {
     if (match($0, /"(BEGIN|END)_WPHARD_[A-Z0-9_]+"/)) {
         marker = substr($0, RSTART + 1, RLENGTH - 2)
@@ -32,13 +53,21 @@ BEGIN {
     }
 }
 
-/id:[0-9]+/ {
-    if (match($0, /id:[0-9]+/)) {
-        id = substr($0, RSTART + 3, RLENGTH - 3)
-        if (id in required) {
-            rule_count[id]++
-            rule_file[id] = FILENAME
-            rule_line[id] = FNR
+{
+    if ($0 ~ /^[[:space:]]*SecRule[[:space:]]+/) {
+        rule_text = ""
+        rule_start = FNR
+        in_rule = 1
+    }
+    if (in_rule) {
+        line = $0
+        continued = line ~ /\\[[:space:]]*$/
+        if (continued)
+            sub(/\\[[:space:]]*$/, " ", line)
+        rule_text = rule_text " " line
+        if (!continued) {
+            count_rule_actions()
+            in_rule = 0
         }
     }
 }
