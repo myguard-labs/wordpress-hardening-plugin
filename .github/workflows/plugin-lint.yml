@@ -28,7 +28,7 @@ jobs:
 
       - name: Lint YAML
         run: |
-          python -m pip install yamllint
+          python -m pip install yamllint==1.38.0
           yamllint -f github -d 'extends: default
           rules:
             new-line-at-end-of-file:
@@ -54,6 +54,6 @@ jobs:
 
       - name: Check Plugin syntax
         run: |
-          python -m pip install --upgrade setuptools
-          python -m pip install secrules-parsing
+          python -m pip install --upgrade setuptools==80.10.2
+          python -m pip install secrules-parsing==0.3.0
           secrules-parser -c -v --output-type github -f plugins/*.conf
