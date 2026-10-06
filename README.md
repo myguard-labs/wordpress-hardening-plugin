@@ -39,7 +39,12 @@ What this plugin does so far:
   trusted until configured) (PL1)
 - Optional IPv6-aware client-IP resolution and private-network whitelisting (loopback + RFC 1918 + IPv6 `::1` + ULA `fc00::/7`)
 - Detect version-disclosure response headers — X-Pingback, X-Powered-By, REST Link rel=api.w.org. Real stripping must be at the proxy: `proxy_hide_header X-Pingback; proxy_hide_header X-Powered-By; more_clear_headers "Link";` (configurable, default: tag) (PL1)
-- Hard-block info-leak paths in phase:1 — readme.html, license.txt, .user.ini, wp-admin/install.php, wp-admin/setup-config.php, wp-includes/wlwmanifest.xml, wp-content/debug.log (configurable, default: block) (PL1)
+- Hard-block info-leak paths in phase:1: readme.html, license.txt, .user.ini,
+  wp-admin/install.php, wp-admin/setup-config.php, wp-includes/wlwmanifest.xml,
+  and wp-content/debug.log (configurable, default: block) (PL1). The two PHP
+  installers also match PATH_INFO suffixes such as `install.php/extra`; the
+  other files require an exact path. The raw path is decoded once, preserving
+  filename boundaries and leaving double-encoded names unmatched.
 - Block CVE-2018-6389 DoS — long `?load=` on wp-admin/load-scripts.php and load-styles.php (configurable, default: block) (PL1)
 - Block VCS / dotfile probes — .env, .git/, .svn/, .hg/, .bzr/, .htpasswd, .DS_Store (configurable, default: block) (PL1)
 - Block wp-config backup variants — .save, .old, .new, .dist, .sample, .copy, ~, numeric .1/.2 (configurable, default: block) (PL1)
