@@ -1,3 +1,4 @@
+---
 # Integration test stack — official OWASP CRS images.
 #
 #   backend – tiny nginx origin, returns 200 on every path (go-ftw target).
@@ -16,7 +17,8 @@
 # Build it before `up` (the workflows do this; locally run the same):
 #   rm -rf tests/integration/.plugins-staged
 #   mkdir -p tests/integration/.plugins-staged
-#   cp plugins/* tests/integration/ci-plugin/* tests/integration/.plugins-staged/
+#   cp plugins/* tests/integration/ci-plugin/* \
+#     tests/integration/.plugins-staged/
 #   Stage the optional IP and rate-limit includes as shown in README.md.
 #   docker compose -f tests/integration/docker-compose.yml up -d
 #
@@ -36,7 +38,7 @@ x-modsec-env: &modsec-env
   MODSEC_AUDIT_LOG: "/var/log/modsec/audit.log"
   MODSEC_AUDIT_LOG_PARTS: "ABIJDEFHZ"
   MODSEC_REQ_BODY_ACCESS: "On"
-  MODSEC_RESP_BODY_ACCESS: "Off"
+  MODSEC_RESP_BODY_ACCESS: "On"
   # Lower thresholds so scoring rules surface in DetectionOnly logs. Harmless
   # in DetectionOnly mode.
   ANOMALY_INBOUND: "5"
