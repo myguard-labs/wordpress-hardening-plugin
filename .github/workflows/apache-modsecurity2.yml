@@ -110,6 +110,9 @@ jobs:
       - name: Verify default XFF trust and configured proxies
         run: python3 ci/check_xff_trust.py apache
 
+      - name: Verify On-mode anomaly threshold blocks a scored request
+        run: python3 -m ci.check_block_mode
+
       - name: Dump logs on failure
         if: failure()
         run: |
