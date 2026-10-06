@@ -24,11 +24,14 @@ def yaml_block():
 
 class CiLocalRootTests(unittest.TestCase):
     @staticmethod
-    def run_startup(directory, env=None):
+    def run_startup(directory, env=None, non_repository=False):
         startup = SCRIPT.read_text().split("\nFAIL=0\n", 1)[0]
         # Git hooks export repository context that would override the fixture cwd.
         inherited = os.environ if env is None else env
         env = {name: value for name, value in inherited.items() if not name.startswith("GIT_")}
+        if non_repository:
+            # Fixtures under ROOT need this ceiling to prevent Git finding ROOT.
+            env["GIT_CEILING_DIRECTORIES"] = str(Path(directory).parent)
         return subprocess.run(
             ["bash", "-c", startup + '\nprintf "CHECKS_STARTED:%s\\n" "$PWD"\n'],
             cwd=directory, env=env, capture_output=True, text=True, check=False,
@@ -40,8 +43,8 @@ class CiLocalRootTests(unittest.TestCase):
         self.assertEqual(f"CHECKS_STARTED:{ROOT}\n", result.stdout)
 
     def test_non_repository_stops_before_checks(self):
-        with tempfile.TemporaryDirectory() as directory:
-            result = self.run_startup(directory)
+        with tempfile.TemporaryDirectory(dir=ROOT) as directory:
+            result = self.run_startup(directory, non_repository=True)
         self.assertNotEqual(0, result.returncode)
         self.assertIn("CI-local: cannot resolve repository root", result.stderr)
         self.assertNotIn("CHECKS_STARTED", result.stdout)
@@ -63,7 +66,7 @@ class CiLocalRootTests(unittest.TestCase):
             **os.environ, "GIT_DIR": str(ROOT / ".git"),
             "GIT_WORK_TREE": ".", "GIT_PREFIX": "",
         }
-        with tempfile.TemporaryDirectory() as outside:
+        with tempfile.TemporaryDirectory(dir=ROOT) as non_repository:
             for explicit_env in (False, True):
                 with self.subTest(explicit_env=explicit_env), mock.patch.dict(
                     os.environ, hook_env, clear=True
@@ -72,7 +75,7 @@ class CiLocalRootTests(unittest.TestCase):
                     normal = self.run_startup(ROOT / "plugins", env)
                     self.assertEqual(0, normal.returncode, normal.stderr)
                     self.assertEqual(f"CHECKS_STARTED:{ROOT}\n", normal.stdout)
-                    invalid = self.run_startup(outside, env)
+                    invalid = self.run_startup(non_repository, env, non_repository=True)
                     self.assertNotEqual(0, invalid.returncode)
                     self.assertIn("cannot resolve repository root", invalid.stderr)
                     self.assertNotIn("CHECKS_STARTED", invalid.stdout)
