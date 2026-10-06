@@ -52,6 +52,10 @@ jobs:
           mkdir -p tests/integration/.plugins-staged
           cp plugins/* tests/integration/ci-plugin/* \
              tests/integration/.plugins-staged/
+          # Explicit IP opt-in after all config files, before the main rules.
+          printf 'Include %s/wordpress-hardening-ip.conf\n' \
+            /etc/modsecurity.d/owasp-crs/plugins \
+            > tests/integration/.plugins-staged/aaa-ci-ip-before.conf
           # Load the opt-in rate-limit rules on this engine too (real name is
           # outside the CRS loader globs because it is Coraza-fatal).
           mv tests/integration/.plugins-staged/wordpress-hardening-ratelimit.conf \

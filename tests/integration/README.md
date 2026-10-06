@@ -28,7 +28,10 @@ Compose mounts `tests/integration/.plugins-staged/` into both WAF services at
 CI-only `ci-plugin/zzz-ci-config.conf` before startup. That extra config enables
 the opt-in features (GeoIP login control, IP reputation, scanner/REST/wp-cron
 blocking, plugin readme blocking, strict integer params) that ship disabled,
-and bumps detection paranoia to 2. Restage after editing either source tree,
+and bumps detection paranoia to 2. A CI-only before-file explicitly includes
+`wordpress-hardening-ip.conf` before the main rules; the rate-limit include runs
+after them. Base-only selection tests leave the IP file present but unincluded.
+Restage after editing either source tree,
 then restart the WAF services to load the new rules.
 
 go-ftw's `X-CRS-Test` markers are recorded by audit part B directly. A
@@ -49,6 +52,9 @@ mkdir -p tests/logs/apache tests/logs/nginx && chmod -R 777 tests/logs
 rm -rf tests/integration/.plugins-staged
 mkdir -p tests/integration/.plugins-staged
 cp plugins/* tests/integration/ci-plugin/* tests/integration/.plugins-staged/
+printf '%s\n' \
+  'Include /etc/modsecurity.d/owasp-crs/plugins/wordpress-hardening-ip.conf' \
+  > tests/integration/.plugins-staged/aaa-ci-ip-before.conf
 mv tests/integration/.plugins-staged/wordpress-hardening-ratelimit.conf \
   tests/integration/.plugins-staged/wordpress-hardening-ratelimit-before.conf
 
@@ -86,6 +92,16 @@ differ in determinism:
 > on a flaky engine would force retry hacks or spurious red, so functional
 > behaviour is gated on Apache and v3 loadability is gated here — both
 > deterministic, both first-run.
+
+## Optional IP selection
+
+`python3 -m ci.check_optional_ip apache` and the equivalent `nginx` command
+start disposable stacks with base-only, unset/default-on, explicitly enabled,
+and disabled configurations. They assert state absence, private exemptions,
+reputation, and ordinary endpoint protection. Apache also verifies that the
+login limiter shares identity across client ports and separates different clients.
+The separate `check_xff_trust.py` lane explicitly includes the IP file and retains
+the full parser, malformed-header, trust, and reputation corpus on both engines.
 
 ## Security corpus
 

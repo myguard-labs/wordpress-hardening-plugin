@@ -54,6 +54,10 @@ jobs:
           mkdir -p tests/integration/.plugins-staged
           cp plugins/* tests/integration/ci-plugin/* \
              tests/integration/.plugins-staged/
+          # Explicit IP opt-in after all config files, before the main rules.
+          printf 'Include %s/wordpress-hardening-ip.conf\n' \
+            /etc/modsecurity.d/owasp-crs/plugins \
+            > tests/integration/.plugins-staged/aaa-ci-ip-before.conf
           # The opt-in rate-limit file is deliberately named outside the CRS
           # plugin loader globs (Coraza-incompatible; see README). CI tests it
           # on this engine, so stage it under a *-before.conf name to load it.
@@ -98,6 +102,9 @@ jobs:
           ./ftw check -d tests/regression --config tests/integration/.ftw.yml
           ./ftw run   -d tests/regression --config tests/integration/.ftw.yml \
             --show-failures-only
+
+      - name: Verify optional IP selection and plugin disable behavior
+        run: python3 -m ci.check_optional_ip apache
 
       - name: Verify default XFF trust and configured proxies
         run: python3 ci/check_xff_trust.py apache

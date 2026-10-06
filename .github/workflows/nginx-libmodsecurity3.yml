@@ -61,6 +61,10 @@ jobs:
           mkdir -p tests/integration/.plugins-staged
           cp plugins/* tests/integration/ci-plugin/* \
              tests/integration/.plugins-staged/
+          # Explicit IP opt-in after all config files, before the main rules.
+          printf 'Include %s/wordpress-hardening-ip.conf\n' \
+            /etc/modsecurity.d/owasp-crs/plugins \
+            > tests/integration/.plugins-staged/aaa-ci-ip-before.conf
           # Keep the opt-in rate-limit rules in the v3 parse/load gate: stage
           # the file under a *-before.conf name so the CRS loader includes it
           # (its real name is outside the globs because it is Coraza-fatal).
@@ -106,6 +110,9 @@ jobs:
             exit 1
           fi
           echo "smoke OK: 9522207 fired on /wp-json/, homepage clean"
+
+      - name: Verify optional IP selection and plugin disable behavior
+        run: python3 -m ci.check_optional_ip nginx
 
       - name: Verify default XFF trust and configured proxies
         run: python3 ci/check_xff_trust.py nginx
