@@ -102,11 +102,7 @@ fi
 
 # ── integration.yml: skipAfter only on chain-starter rules ──────────────────
 note "no skipAfter on chained (inner) rules  [AH00526 guard]"
-if ! awk '
-  /^[ \t]+SecRule/ { inrule = 1 }
-  inrule && /skipAfter/ { print "  -> " FILENAME ":" FNR; bad = 1 }
-  inrule && !/\\[ \t]*$/ { inrule = 0 }
-  END { exit bad ? 1 : 0 }' plugins/*.conf; then
+if ! awk -f ci/check_chained_skipafter.awk plugins/*.conf; then
   err "skipAfter on a chained rule (move it to the chain starter)"
 else
   ok "no chained rule carries skipAfter"

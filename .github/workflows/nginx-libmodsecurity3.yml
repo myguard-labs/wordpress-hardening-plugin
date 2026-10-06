@@ -1,5 +1,5 @@
 ---
-# nginx + libmodsecurity3 v3 — PARSE / LOAD gate (the production engine).
+# nginx + libmodsecurity3 v3 — load, smoke and targeted behavior gate.
 #
 # This job proves the plugin's rules PARSE and LOAD on libmodsecurity3 v3 (the
 # engine mail.myguard.nl actually runs) and that the engine evaluates them —
@@ -11,7 +11,8 @@
 # byte-identical rules run green and deterministic on Apache + mod_security2,
 # which is the blocking *functional* gate in apache-modsecurity2.yml). Gating a
 # mandatory check on a flaky engine would mean retry hacks or spurious red, so
-# functionality is gated on Apache and loadability is gated here.
+# the full regression suite runs on Apache; this lane also checks optional IP
+# behavior and XFF trust against nginx.
 #
 # How the gate works:
 #   1. The official CRS image loads all rules at nginx startup; a rule that is
@@ -21,6 +22,7 @@
 #      collection — the parts that flake) confirms rules are actually active:
 #      GET /wp-json/ must trip rule 9522207 (REST-API root block), and the
 #      homepage must stay clean.
+#   3. Targeted checks cover optional IP selection and XFF trust.
 #
 # Security note: the only run:-context interpolation is github.token.
 on:

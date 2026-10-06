@@ -103,17 +103,10 @@ jobs:
           #   "ModSecurity: SkipAfter actions can only be specified by chain starter rules"
           # In a chained rule, skipAfter must live in the action list of the
           # CHAIN STARTER (the outer SecRule), never in the inner/secondary
-          # SecRule. Inner-chain rules are written indented in this codebase,
-          # so any indented SecRule whose continued action block contains
-          # skipAfter is the broken pattern.
+          # SecRule. Track the chain action across continued lines rather than
+          # relying on the inner rule's indentation.
           echo "Checking that no chained (inner) SecRule carries a skipAfter action..."
-          cat > /tmp/chained-skipafter.awk <<'AWK'
-          /^[ \t]+SecRule/ { inrule = 1 }
-          inrule && /skipAfter/ { print FILENAME ":" FNR ": chained skipAfter (move it to the chain starter)"; bad = 1 }
-          inrule && !/\\[ \t]*$/ { inrule = 0 }
-          END { exit bad ? 1 : 0 }
-          AWK
-          if ! awk -f /tmp/chained-skipafter.awk plugins/*.conf; then
+          if ! awk -f ci/check_chained_skipafter.awk plugins/*.conf; then
             echo "ERROR: skipAfter found on a chained (inner) SecRule."
             echo "       Move skipAfter into the chain-starter (outer) rule's action list."
             exit 1
@@ -200,6 +193,9 @@ jobs:
   # used to live here was superseded by:
   #   - .github/workflows/apache-modsecurity2.yml (real Apache + ModSec v2)
   #   - .github/workflows/nginx-libmodsecurity3.yml (real Angie + libmodsec3)
-  # Both run the regression suite and the security corpus against actual
-  # engines built from the production CRS Debian package. The gate
-  # validation above remains.
+  # Apache/v2 runs the full go-ftw regression suite. The separate security
+  # corpus workflow also runs on Apache/v2. nginx/v3 checks rule loading,
+  # a positive/negative request smoke test, optional IP behavior and XFF trust.
+  # coraza.yml checks loading plus targeted runtime fixtures, optional IP
+  # behavior and XFF trust. Neither runs the full regression suite or corpus.
+  # The static gate validation above runs without an engine.

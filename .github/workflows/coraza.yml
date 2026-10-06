@@ -1,9 +1,12 @@
 ---
-# Coraza v3 load gate. Coraza is the strictest of the three target engines:
+# Coraza v3 load and targeted runtime gate.
+# Coraza is the strictest of the three target engines:
 # it rejects the whole ruleset at config load where ModSecurity would warn
 # (PCRE-only regex constructs, persistent collections, unsupported actions).
 # This gate loads every glob-loaded plugin file into coraza.NewWAF() and
-# fails on any load error, keeping the plugin portable.
+# fails on any load error, keeping the plugin portable. Runtime fixtures also
+# check path normalization, method matching, URL decoding, optional IP
+# behavior and XFF trust; this lane does not run the full go-ftw suite.
 #
 # wordpress-hardening-ratelimit.conf is deliberately NOT gated: it is the
 # opt-in Apache/mod_security2-only file (persistent IP collections are
