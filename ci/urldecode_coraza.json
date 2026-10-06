@@ -904,5 +904,148 @@
     "no_expect_ids": [
       9522100
     ]
+  },
+  {
+    "name": "9522100-static-32",
+    "method": "GET",
+    "uri": "/license.txt/extra/nested.css",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS",
+      "Accept": "*/*"
+    },
+    "expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-static-33",
+    "method": "GET",
+    "uri": "/.user.ini/extra?mode=check",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS",
+      "Accept": "*/*"
+    },
+    "expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-static-34",
+    "method": "GET",
+    "uri": "/wp-includes/wlwmanifest.xml%2fextra",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS",
+      "Accept": "*/*"
+    },
+    "expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-static-35",
+    "method": "GET",
+    "uri": "/wp-content/debug.log%2Fextra%2fnested.css?mode=check",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS",
+      "Accept": "*/*"
+    },
+    "expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-static-36",
+    "method": "GET",
+    "uri": "/r%65adme.html/extra",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS",
+      "Accept": "*/*"
+    },
+    "expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-static-37",
+    "method": "GET",
+    "uri": "http://localhost/license.txt/extra?mode=check",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS",
+      "Accept": "*/*"
+    },
+    "expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-static-38",
+    "method": "GET",
+    "uri": "/readme.html.bak/extra",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS",
+      "Accept": "*/*"
+    },
+    "no_expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-static-39",
+    "method": "GET",
+    "uri": "/.user.inix/extra",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS",
+      "Accept": "*/*"
+    },
+    "no_expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-static-40",
+    "method": "GET",
+    "uri": "/wp-content/debug.log%252fextra",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS",
+      "Accept": "*/*"
+    },
+    "no_expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-static-41",
+    "method": "GET",
+    "uri": "/search?path=/wp-includes/wlwmanifest.xml/extra",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS",
+      "Accept": "*/*"
+    },
+    "no_expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "9522100-static-42",
+    "method": "GET",
+    "uri": "/license.txt%3fextra",
+    "headers": {
+      "Host": "localhost",
+      "User-Agent": "OWASP CRS",
+      "Accept": "*/*"
+    },
+    "no_expect_ids": [
+      9522100
+    ]
   }
 ]

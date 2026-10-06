@@ -303,7 +303,7 @@ tests:
         output:
           no_log_contains: id "9522100"
   - test_title: 9522100-28
-    desc: Negative - non-executable file with trailing slash
+    desc: Static info-leak file with trailing slash
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -312,9 +312,9 @@ tests:
           method: GET
           uri: /readme.html/
         output:
-          no_log_contains: id "9522100"
+          log_contains: id "9522100"
   - test_title: 9522100-29
-    desc: Negative - non-executable file with a suffix
+    desc: Static info-leak file with a suffix
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -323,7 +323,7 @@ tests:
           method: GET
           uri: /wp-content/debug.log/extra
         output:
-          no_log_contains: id "9522100"
+          log_contains: id "9522100"
   - test_title: 9522100-30
     desc: Negative - double-encoded installer filename
     stages:
@@ -344,5 +344,126 @@ tests:
           port: 80
           method: GET
           uri: /search?path=/wp-admin/install.php/extra
+        output:
+          no_log_contains: id "9522100"
+  - test_title: 9522100-32
+    desc: Static license with nested suffix
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /license.txt/extra/nested.css
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-33
+    desc: Static PHP configuration with query after suffix
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /.user.ini/extra?mode=check
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-34
+    desc: Static manifest with encoded separator
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /wp-includes/wlwmanifest.xml%2fextra
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-35
+    desc: Static log with encoded nested separators
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /wp-content/debug.log%2Fextra%2fnested.css?mode=check
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-36
+    desc: Encoded static filename with suffix
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /r%65adme.html/extra
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-37
+    desc: Absolute-form static filename with suffix
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: http://localhost/license.txt/extra?mode=check
+        output:
+          log_contains: id "9522100"
+  - test_title: 9522100-38
+    desc: Negative - static filename backup near-miss
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /readme.html.bak/extra
+        output:
+          no_log_contains: id "9522100"
+  - test_title: 9522100-39
+    desc: Negative - static filename similar name
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /.user.inix/extra
+        output:
+          no_log_contains: id "9522100"
+  - test_title: 9522100-40
+    desc: Negative - double-encoded static separator
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /wp-content/debug.log%252fextra
+        output:
+          no_log_contains: id "9522100"
+  - test_title: 9522100-41
+    desc: Negative - static suffix appears only in query
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /search?path=/wp-includes/wlwmanifest.xml/extra
+        output:
+          no_log_contains: id "9522100"
+  - test_title: 9522100-42
+    desc: Negative - encoded question mark remains part of static filename
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Accept: '*/*'}
+          port: 80
+          method: GET
+          uri: /license.txt%3fextra
         output:
           no_log_contains: id "9522100"
