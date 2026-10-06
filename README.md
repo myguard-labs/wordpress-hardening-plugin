@@ -141,6 +141,13 @@ configure and secure that trust boundary there as well.
 
 The base protections use the defaults listed above; IP features require the explicit include. To override defaults or disable specific protections, uncomment the corresponding `SecAction` line in `plugins/wordpress-hardening-config.conf`.
 
+`block_load_scripts_dos` sums decoded `load` and `load[...]` values for
+`wp-admin/load-scripts.php` and `load-styles.php`. Rule `9522112` rejects totals
+of 80 bytes or more. When every load key is exactly `load[chunk_N]` (a numeric
+index) and each value is at most 128 bytes, the aggregate cutoff is 1024 bytes.
+Mixed keys, oversized chunks, leading spaces and suffixes such as `load[a]x`
+keep the 80-byte cutoff. Repeated parameters count toward the total.
+
 **Important note on `block_admin_login`**: This rule blocks login attempts that use the **literal username "admin"** — it does NOT block all administrator accounts. Only WordPress installations with a user named exactly "admin" will be affected.
 
 ## IP-Based Rate Limiting (opt-in, Apache/mod_security2 only)
@@ -315,6 +322,7 @@ The plugin uses the allocated range **9522000-9522999**. Major buckets:
 | `9522060`-`9522068` | Optional client-IP resolver (`REMOTE_ADDR`, XFF v4/v6, trusted-proxy gate, `client_is_private`) |
 | `9522099` | Plugin kill-switch (removes 9522000-9522999 except itself) |
 | `9522101`-`9522111` | xmlrpc / user-enumeration / REST API / admin-login / wp-cron blocks |
+| `9522126`-`9522131` | Load budget helpers for `9522112` |
 | `9522150`-`9522155` | Per-group whitelist (uses `client_is_private`) |
 | `9522198` | Exact-path skip for known benign static assets |
 | `9522199`-`9522207` | Static-asset fast path, direct-PHP guard, files.data, uploads, sensitive files |
