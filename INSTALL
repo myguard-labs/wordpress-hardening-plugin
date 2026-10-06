@@ -39,10 +39,30 @@ referenced with an absolute path):
 
 The files must be in one of:
 
-1. The same directory as `wordpress-hardening-before.conf`, OR
+1. The same directory as the .conf file that references them (keep the plugin
+   files together), OR
 2. ModSecurity's configured rules directory, OR
 3. Referenced with an absolute path in the rules file:
      @pmFromFile /full/path/to/wordpress-hardening-files.data
+
+Optional IP rules (all three engines)
+====================================
+
+plugins/wordpress-hardening-ip.conf is NOT loaded by the standard CRS plugin
+loader. Include it explicitly to retain client-IP/XFF resolution, trusted-proxy
+pinning, private-client exemptions and IP reputation. Keep the two IP .data
+files alongside it. Without this include, the base rules still protect endpoints
+and do not exempt private clients.
+
+Order: CRS setup, plugin *-config.conf and operator overrides, optional IP file,
+plugin *-before.conf, optional rate-limit file, CRS rules, plugin *-after.conf.
+With an automatic loader, insert the explicit IP include between its config and
+before stages; do not include the same file twice. Set operator overrides,
+including wordpress-hardening-plugin_enabled=0, before the IP file.
+
+GeoIP stays in the base rules; only its private-client exemption needs the IP
+include. IP reputation also needs ip_reputation_enabled=1 and a populated list.
+Keep trusted_proxies_enabled=1 and list only proxies that overwrite incoming XFF.
 
 Optional login rate limiting (Apache/mod_security2 only)
 =========================================================
@@ -50,6 +70,7 @@ Optional login rate limiting (Apache/mod_security2 only)
 plugins/wordpress-hardening-ratelimit.conf is NOT loaded by the standard CRS
 plugin loader. It requires persistent collections (load-fatal on Coraza,
 unreliable on libmodsecurity3) — include it explicitly on Apache only, after
-the plugin before-file. See README "IP-Based Rate Limiting".
+the plugin before-file. It also requires wordpress-hardening-ip.conf before
+the main before-file for its client identity. See README "IP-Based Rate Limiting".
 
 See [README](README.md) for complete installation documentation.

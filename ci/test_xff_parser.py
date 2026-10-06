@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ci.check_xff_trust import address_corpus, expected_address
 
-SOURCE = Path(__file__).resolve().parents[1] / "plugins/wordpress-hardening-before.conf"
+SOURCE = Path(__file__).resolve().parents[1] / "plugins/wordpress-hardening-ip.conf"
 
 
 def parser_pattern(source, rule_id):

@@ -46,6 +46,7 @@ jobs:
           "$RUNNER_TEMP/coraza-probe" \
             wordpress-hardening-config.conf \
             ../tests/integration/ci-plugin/zzz-ci-config.conf \
+            wordpress-hardening-ip.conf \
             wordpress-hardening-before.conf \
             wordpress-hardening-after.conf
 
@@ -58,6 +59,7 @@ jobs:
             "$RUNNER_TEMP/coraza-probe" -tx "$fixture" \
               ../../plugins/wordpress-hardening-config.conf \
               ../../tests/integration/ci-plugin/zzz-ci-config.conf \
+              ../../plugins/wordpress-hardening-ip.conf \
               ../../plugins/wordpress-hardening-before.conf \
               ../../plugins/wordpress-hardening-after.conf
           done
@@ -66,8 +68,14 @@ jobs:
           "$RUNNER_TEMP/coraza-probe" \
             -tx ../../ci/urldecode_default_coraza.json \
             ../../plugins/wordpress-hardening-config.conf \
+            ../../plugins/wordpress-hardening-ip.conf \
             ../../plugins/wordpress-hardening-before.conf \
             ../../plugins/wordpress-hardening-after.conf
+
+      - name: Verify optional IP selection and plugin disable behavior
+        run: |
+          python3 -m ci.check_optional_ip coraza \
+            --probe "$RUNNER_TEMP/coraza-probe"
 
       - name: Verify default XFF trust and configured proxies
         run: |

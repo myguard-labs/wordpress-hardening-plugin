@@ -429,6 +429,7 @@ def coraza(directory, probe, private_peer=False):
                     if (plugins / "ci-xff-probe-config.conf").exists()
                     else []
                 ),
+                "wordpress-hardening-ip.conf",
                 "wordpress-hardening-before.conf",
                 "wordpress-hardening-after.conf",
                 cwd=plugins,
@@ -499,7 +500,16 @@ def check_parser_http(status, engine, mode):
     print(f"{engine}:{mode}: differential parser corpus passed", flush=True)
 
 
-def docker(directory, engine, image, private_peer=False):
+def docker(
+    directory,
+    engine,
+    image,
+    private_peer=False,
+    *,
+    modes=("default", "trusted", "untrusted", "legacy", "unsupported", "textual"),
+    prepare=stage,
+    check=check_http,
+):
     name = directory.parent.name.replace(".", "-") + "-" + directory.name
     network = name + "-net"
     containers = []
@@ -526,16 +536,14 @@ def docker(directory, engine, image, private_peer=False):
             + ":/etc/nginx/nginx.conf:ro",
             "nginx:alpine",
         )
-        for mode in (
-            "default",
-            "trusted",
-            "untrusted",
-            "legacy",
-            "unsupported",
-            "textual",
-        ):
+        for mode in modes:
             plugins = directory / mode
-            stage(plugins, mode, peer)
+            prepare(plugins, mode, peer)
+            if mode != "base":
+                (plugins / "aaa-ci-ip-before.conf").write_text(
+                    "Include /etc/modsecurity.d/owasp-crs/plugins/"
+                    "wordpress-hardening-ip.conf\n"
+                )
             server = name + "-" + mode
             containers.append(server)
             run(
@@ -567,7 +575,7 @@ def docker(directory, engine, image, private_peer=False):
             )
             url = "http://" + address + ":8080"
 
-            check_http(engine, mode, url, server, private_peer)
+            check(engine, mode, url, server, private_peer)
             run("docker", "rm", "-f", server)
             containers.remove(server)
     finally:
