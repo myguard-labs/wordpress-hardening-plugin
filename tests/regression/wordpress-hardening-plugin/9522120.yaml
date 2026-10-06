@@ -6,7 +6,7 @@ meta:
   name: 9522120.yaml
 tests:
   - test_title: 9522120-1
-    desc: revslider_show_image legacy probe is blocked
+    desc: encoded traversal in revslider_show_image legacy probe is blocked
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -14,7 +14,7 @@ tests:
           port: 80
           method: GET
           uri: >-
-            /wp-admin/admin-ajax.php?action=revslider_show_image&img=../wp-config.php
+            /wp-admin/admin-ajax.php?action=revslider_show_image&img=..%2Fwp-config.php
         output:
           log_contains: id "9522120"
   - test_title: 9522120-2

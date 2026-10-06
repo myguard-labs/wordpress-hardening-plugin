@@ -15,6 +15,23 @@ DIRECT_RULES = ("9522107", "9522111", "9522122")
 
 
 class FtwPositiveTests(unittest.TestCase):
+    def test_encoded_null_path_has_live_positive_and_apache_boundary(self):
+        suite = yaml.safe_load((SUITES / "9522309.yaml").read_text())
+        self.assertEqual(
+            [f"9522309-{number}" for number in range(1, 6)],
+            [test["test_title"] for test in suite["tests"]],
+        )
+        stages = {test["test_title"]: test["stages"][0] for test in suite["tests"]}
+        positive = stages["9522309-1"]
+        boundary = stages["9522309-5"]
+        self.assertEqual("/wp-content/uploads/image%2500.php", positive["input"]["uri"])
+        self.assertEqual('id "9522309"', positive["output"]["log_contains"])
+        self.assertEqual("/wp-content/uploads/image%00.php", boundary["input"]["uri"])
+        self.assertEqual('id "9522309"', boundary["output"]["no_log_contains"])
+        ignored = yaml.safe_load(CONFIG.read_text())["testoverride"]["ignore"]
+        self.assertNotIn("9522309-1", ignored)
+        self.assertNotIn("9522309-5", ignored)
+
     def test_lint_workflow_runs_guard(self):
         steps = yaml.safe_load(WORKFLOW.read_text())["jobs"]["validate-files"]["steps"]
         run = next(step["run"] for step in steps if step.get("name") == "CI unit tests")
@@ -73,6 +90,27 @@ class FtwPositiveTests(unittest.TestCase):
         ignored = yaml.safe_load(CONFIG.read_text())["testoverride"]["ignore"]
         self.assertTrue(all(test["test_title"] not in ignored for test in positives))
         self.assertGreater(check_positives(SUITES, CONFIG), 0)
+
+    def test_9522120_traversal_and_benign_query_controls(self):
+        suite = yaml.safe_load((SUITES / "9522120.yaml").read_text())
+        tests = {test["test_title"]: test["stages"][0] for test in suite["tests"]}
+        prefix = "/wp-admin/admin-ajax.php?action=revslider_show_image&img="
+        self.assertEqual(
+            prefix + "..%2Fwp-config.php", tests["9522120-1"]["input"]["uri"]
+        )
+        self.assertEqual('id "9522120"', tests["9522120-1"]["output"]["log_contains"])
+        self.assertEqual(
+            prefix + "../wp-config.php", tests["9522120-100"]["input"]["uri"]
+        )
+        self.assertEqual('id "9522120"', tests["9522120-100"]["output"]["log_contains"])
+        self.assertEqual(
+            "/search?q=revslider_show_image", tests["9522120-101"]["input"]["uri"]
+        )
+        self.assertEqual('id "9522120"', tests["9522120-101"]["output"]["no_log_contains"])
+        ignored = yaml.safe_load(CONFIG.read_text())["testoverride"]["ignore"]
+        self.assertNotIn("9522120-1", ignored)
+        self.assertNotIn("9522120-100", ignored)
+        self.assertNotIn("9522120-101", ignored)
 
     def test_9522115_fails_when_all_live_positives_are_deleted(self):
         with tempfile.TemporaryDirectory() as directory:

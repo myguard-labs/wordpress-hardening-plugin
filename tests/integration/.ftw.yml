@@ -9,17 +9,8 @@ testoverride:
     port: 8001
     override_empty_host_header: true
   # Apache + mod_security2 exclusions. Each reason names a tracked row and
-  # the observed mismatch; ci/check_ftw_positives.py locks these six IDs.
+  # the observed mismatch; ci/check_ftw_positives.py locks these three IDs.
   ignore:
-    "9522120-1": >-
-      R6-APACHE-9522120: revslider image traversal payload does not log
-      9522120 on Apache
-    "9522205-2": >-
-      R6-APACHE-9522205: long uploads PHP path does not log 9522205 on
-      Apache
-    "9522309-1": >-
-      R6-APACHE-9522309: encoded null byte in URI differs under Apache and
-      CRS parsing
     "9522317-1": >-
       R6-9522317-OVERLAP: 9522100 phase-1 block precedes install.php
       assertion
