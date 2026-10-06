@@ -110,6 +110,9 @@ jobs:
       - name: Verify On-mode anomaly threshold blocks a scored request
         run: python3 -m ci.check_block_mode
 
+      - name: Verify On-mode login rate limit returns HTTP 429
+        run: python3 -m ci.check_ratelimit_mode
+
       - name: Dump logs on failure
         if: failure()
         run: |
