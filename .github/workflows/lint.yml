@@ -35,59 +35,8 @@ jobs:
           "$RUNNER_TEMP/plugin-lint-venv/bin/python" -B -m unittest \
             discover -s ci -p 'test_*.py'
 
-      - name: Check @pmFromFile references
-        run: |
-          # Validate that @pmFromFile references point to existing .data files.
-          grep -r "@pmFromFile" plugins/*.conf | while read -r line; do
-            file=$(echo "$line" | sed -n 's/.*@pmFromFile "\?\([^ "]*\).*/\1/p')
-            if [ -n "$file" ]; then
-              if [ ! -f "plugins/$file" ]; then
-                echo "ERROR: Referenced file not found: $file"
-                exit 1
-              fi
-            fi
-          done || exit 1
-          echo "✓ All @pmFromFile references valid"
-
-      - name: Check Rule ID ranges
-        run: |
-          # Validate that all rules are in the allocated range 9522000-9522999
-          grep -oh 'id:[0-9]*' plugins/*.conf | cut -d: -f2 |
-            while read -r id; do
-            if [ "$id" -lt 9522000 ] || [ "$id" -gt 9522999 ]; then
-              echo "ERROR: Rule ID $id outside allocated range" \
-                "(9522000-9522999)"
-              exit 1
-            fi
-          done || exit 1
-          echo "✓ All Rule IDs in valid range"
-
-      - name: Check for duplicate Rule IDs
-        run: |
-          # Ensure no duplicate rule IDs
-          dupes=$(
-            grep -oh 'id:[0-9]*' plugins/*.conf |
-              cut -d: -f2 | sort | uniq -d
-          )
-          if [ -n "$dupes" ]; then
-            echo "ERROR: Duplicate Rule IDs found: $dupes"
-            exit 1
-          fi
-          echo "✓ No duplicate Rule IDs"
-
-      - name: Validate test file references
-        run: |
-          # Check that test files reference valid rule IDs
-          for testfile in tests/regression/wordpress-hardening-plugin/*.yaml; do
-            ruleid=$(basename "$testfile" .yaml)
-            # Verify this rule ID exists in config files
-            if ! grep -q "id:$ruleid" plugins/*.conf; then
-              echo "ERROR: Test file $testfile references" \
-                "non-existent rule ID $ruleid"
-              exit 1
-            fi
-          done
-          echo "✓ All test files reference valid rule IDs"
+      - name: Validate plugin file references and IDs
+        run: bash scripts/ci-local.sh --validate-files
 
   plugin-lint:
     needs: validate-files

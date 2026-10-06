@@ -1,14 +1,75 @@
 ---
-# Rules 9522701, 9522702, 9522703 are phase:3 response-header strippers that
-# fire when the upstream backend emits X-Pingback / X-Powered-By (matching
-# wordpress|php) / Link (matching api.w.org). They cannot be exercised by
-# ftw-style request-only tests because the framework's backend does not emit
-# those headers. Verification is operational: deploy the rules, hit /wp-login.php
-# on a real WordPress install, and confirm the response no longer contains
-# X-Pingback or the api.w.org Link header.
 meta:
   author: Thijs Eilander
-  description: wordpress-hardening-plugin
-  enabled: false
+  description: >
+    Phase-3 response-header leak detection. The origin emits one target header
+    per path; these pass/log rules report leaks without changing the response.
+  enabled: true
   name: 9522701.yaml
-tests: []
+tests:
+  - test_title: 9522701-1
+    desc: X-Pingback emitted by the origin triggers its leak detector.
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: Mozilla/5.0}
+          port: 80
+          method: GET
+          uri: /9522701-response-oracle
+        output:
+          log_contains: 'id "9522701"'
+  - test_title: 9522701-2
+    desc: A response without X-Pingback does not trigger that detector.
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: Mozilla/5.0}
+          port: 80
+          method: GET
+          uri: /9522700-response-oracle-control
+        output:
+          no_log_contains: 'id "9522701"'
+  - test_title: 9522701-3
+    desc: PHP X-Powered-By emitted by the origin triggers its leak detector.
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: Mozilla/5.0}
+          port: 80
+          method: GET
+          uri: /9522702-response-oracle
+        output:
+          log_contains: 'id "9522702"'
+  - test_title: 9522701-4
+    desc: Non-PHP X-Powered-By remains outside the leak detector.
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: Mozilla/5.0}
+          port: 80
+          method: GET
+          uri: /9522700-response-oracle-control
+        output:
+          no_log_contains: 'id "9522702"'
+  - test_title: 9522701-5
+    desc: api.w.org Link emitted by the origin triggers its leak detector.
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: Mozilla/5.0}
+          port: 80
+          method: GET
+          uri: /9522703-response-oracle
+        output:
+          log_contains: 'id "9522703"'
+  - test_title: 9522701-6
+    desc: An unrelated Link remains outside the REST leak detector.
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: Mozilla/5.0}
+          port: 80
+          method: GET
+          uri: /9522700-response-oracle-control
+        output:
+          no_log_contains: 'id "9522703"'

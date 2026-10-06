@@ -135,9 +135,9 @@ class ChainedSkipAfterTests(unittest.TestCase):
         script = next(
             step["run"]
             for step in steps
-            if step.get("name") == "Verify skipAfter only on chain-starter rules"
+            if step.get("name") == "Validate gate structure and placement"
         )
-        self.assertIn(invocation, script)
+        self.assertEqual("bash scripts/ci-local.sh --validate-gates", script)
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp)
             (work / "ci").mkdir()
@@ -145,7 +145,7 @@ class ChainedSkipAfterTests(unittest.TestCase):
             (work / "ci/check_chained_skipafter.awk").write_text(GUARD.read_text())
             fixture = work / "plugins/rules.conf"
             fixture.write_text(STARTER + INNER)
-            for entry in (local_script, script):
+            for entry in (local_script,):
                 valid = subprocess.run(
                     [
                         "bash",
@@ -169,7 +169,6 @@ class ChainedSkipAfterTests(unittest.TestCase):
             )
             for entry, message in (
                 (local_script, "skipAfter on a chained rule"),
-                (script, "skipAfter found on a chained (inner) SecRule"),
             ):
                 invalid = subprocess.run(
                     [

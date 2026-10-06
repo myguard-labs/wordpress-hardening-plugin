@@ -1,6 +1,8 @@
 """Ensure enabled rule suites retain a live go-ftw positive assertion."""
 
 import argparse
+import hashlib
+import re
 from pathlib import Path
 
 import yaml
@@ -13,6 +15,28 @@ NO_POSITIVE_RULES = {
     "9522604",  # loopback source cannot exercise the reputation hit.
     "9522801",  # silent ctl:ruleRemoveById action.
 }
+
+# SHA-256 of the sorted, newline-separated Apache ignore IDs in .ftw.yml.
+# The YAML is the sole list of IDs and reasons; this approval fingerprint makes
+# any added or substituted ignore fail CI until it is explicitly reviewed.
+APACHE_IGNORE_IDS_SHA256 = (
+    "4e5f8bf3c2b4047b2a2b96f7c54f6fbcf70de57856b5805511bb8d1ccf492dcc"
+)
+ISSUE_REASON = re.compile(r"^R6-[A-Z0-9-]+: \S.{15,}$")
+
+
+def check_ignores(settings: dict) -> None:
+    ignored = (settings.get("testoverride") or {}).get("ignore")
+    if not isinstance(ignored, dict):
+        raise TypeError("Apache go-ftw ignore must be a mapping")
+    if not all(isinstance(title, str) for title in ignored):
+        raise TypeError("Apache go-ftw ignore IDs must be strings")
+    actual = hashlib.sha256("\n".join(sorted(ignored)).encode()).hexdigest()
+    if actual != APACHE_IGNORE_IDS_SHA256:
+        raise ValueError("Apache go-ftw ignore IDs changed; review every new ignore")
+    for title, reason in ignored.items():
+        if not isinstance(reason, str) or not ISSUE_REASON.fullmatch(reason.strip()):
+            raise ValueError(f"Apache go-ftw ignore {title}: tracked reason required")
 
 
 def check_positives(directory: Path, config: Path) -> int:
@@ -47,8 +71,10 @@ def main() -> None:
     parser.add_argument("config", type=Path)
     args = parser.parse_args()
     try:
+        settings = yaml.safe_load(args.config.read_text(encoding="utf-8")) or {}
+        check_ignores(settings)
         count = check_positives(args.directory, args.config)
-    except (OSError, ValueError, yaml.YAMLError) as exc:
+    except (OSError, TypeError, ValueError, yaml.YAMLError) as exc:
         parser.exit(1, f"{exc}\n")
     print(f"Checked live positives in {count} rule YAML files")
 
