@@ -28,7 +28,7 @@ class FtwIgnoreTests(unittest.TestCase):
     def test_replacement_ignore_is_rejected(self):
         changed = copy.deepcopy(self.settings)
         ignored = changed["testoverride"]["ignore"]
-        ignored["9522999-1"] = ignored.pop("9522801-2")
+        ignored["9522999-1"] = ignored.pop("9522317-1")
         with self.assertRaisesRegex(ValueError, "ignore IDs changed"):
             check_ignores(changed)
 
@@ -52,7 +52,7 @@ class FtwIgnoreTests(unittest.TestCase):
         for reason in (None, "", "investigate", "R6-NIT-IGNORE: too short"):
             with self.subTest(reason=reason):
                 changed = copy.deepcopy(self.settings)
-                changed["testoverride"]["ignore"]["9522801-2"] = reason
+                changed["testoverride"]["ignore"]["9522317-1"] = reason
                 with self.assertRaisesRegex(ValueError, "tracked reason required"):
                     check_ignores(changed)
 

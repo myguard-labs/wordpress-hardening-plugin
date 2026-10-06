@@ -9,7 +9,7 @@ testoverride:
     port: 8001
     override_empty_host_header: true
   # Apache + mod_security2 exclusions. Each reason names a tracked row and
-  # the observed mismatch; ci/check_ftw_positives.py locks these three IDs.
+  # the observed mismatch; ci/check_ftw_positives.py locks these two IDs.
   ignore:
     "9522317-1": >-
       R6-9522317-OVERLAP: 9522100 phase-1 block precedes install.php
@@ -17,6 +17,3 @@ testoverride:
     "9522317-2": >-
       R6-9522317-OVERLAP: 9522100 phase-1 block precedes setup-config.php
       assertion
-    "9522801-2": >-
-      R6-APACHE-9522801: author query expected rule hit remains unverified on
-      Apache

@@ -32,6 +32,19 @@ class FtwPositiveTests(unittest.TestCase):
         self.assertNotIn("9522309-1", ignored)
         self.assertNotIn("9522309-5", ignored)
 
+    def test_permalink_exception_preserves_public_author_enumeration(self):
+        suite = yaml.safe_load((SUITES / "9522801.yaml").read_text())
+        tests = {test["test_title"]: test["stages"][0] for test in suite["tests"]}
+        author = tests["9522801-2"]
+        permalink = tests["9522801-1"]
+        ignored = yaml.safe_load(CONFIG.read_text())["testoverride"]["ignore"]
+        self.assertEqual("/?author=1", author["input"]["uri"])
+        self.assertEqual("8.8.8.8", author["input"]["headers"]["X-Forwarded-For"])
+        self.assertEqual('id "9522104"', author["output"]["log_contains"])
+        self.assertNotIn("9522801-2", ignored)
+        self.assertIn("no_log_contains", permalink["output"])
+        self.assertNotIn("X-Forwarded-For", permalink["input"]["headers"])
+
     def test_lint_workflow_runs_guard(self):
         steps = yaml.safe_load(WORKFLOW.read_text())["jobs"]["validate-files"]["steps"]
         run = next(step["run"] for step in steps if step.get("name") == "CI unit tests")

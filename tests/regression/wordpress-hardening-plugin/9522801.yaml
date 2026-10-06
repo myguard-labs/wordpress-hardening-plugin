@@ -28,13 +28,15 @@ tests:
 
   - test_title: 9522801-2
     desc: >
-      Existing request-rule control: 9522104 still fires for /?author=N.
+      Existing request-rule control: 9522104 still fires for /?author=N
+      from a public client while the permalink response exception is active.
     stages:
       - input:
           dest_addr: 127.0.0.1
           headers:
             Host: localhost
             User-Agent: Mozilla/5.0
+            X-Forwarded-For: '8.8.8.8'
           port: 80
           method: GET
           uri: /?author=1
