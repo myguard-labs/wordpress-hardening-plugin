@@ -64,7 +64,9 @@ class XffParserTests(unittest.TestCase):
 
     def test_missing_chain_link_names_id(self):
         source = 'SecRule TX:test "@eq 1" "id:9522061,chain"'
-        with self.assertRaisesRegex(AssertionError, "SecRule id:9522061 has no chain link"):
+        with self.assertRaisesRegex(
+            AssertionError, "SecRule id:9522061 has no chain link"
+        ):
             parser_pattern(source, 9522061)
 
     def test_chain_link_with_own_id_rejected(self):
@@ -72,7 +74,9 @@ class XffParserTests(unittest.TestCase):
             'SecRule TX:test "@eq 1" "id:9522061,chain"\n'
             'SecRule TX:other "@rx .*" "id:9522062,pass"'
         )
-        with self.assertRaisesRegex(AssertionError, "SecRule id:9522061 has no chain link"):
+        with self.assertRaisesRegex(
+            AssertionError, "SecRule id:9522061 has no chain link"
+        ):
             parser_pattern(source, 9522061)
 
     def test_non_rx_chain_link_names_id(self):
