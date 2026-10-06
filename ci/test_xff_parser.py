@@ -18,6 +18,9 @@ def rule_parts(source, rule_id, *, chained=False):
     for index, rule in enumerate(rules):
         if identifier.search(rule["actions"]):
             if chained:
+                assert re.search(r"(?:^|,)\s*chain\s*(?:,|$)", rule["actions"]), (
+                    f"SecRule id:{rule_id} has no chain action"
+                )
                 assert index + 1 < len(rules), f"SecRule id:{rule_id} has no chain link"
                 link = rules[index + 1]
                 assert not re.search(r"(?:^|,)\s*id\s*:", link["actions"]), (
@@ -66,6 +69,16 @@ class XffParserTests(unittest.TestCase):
         source = 'SecRule TX:test "@eq 1" "id:9522061,chain"'
         with self.assertRaisesRegex(
             AssertionError, "SecRule id:9522061 has no chain link"
+        ):
+            parser_pattern(source, 9522061)
+
+    def test_parent_without_chain_action_rejected(self):
+        source = (
+            'SecRule TX:test "@eq 1" "id:9522061,pass"\n'
+            'SecRule REQUEST_HEADERS:X-Forwarded-For "@rx .*" "t:none"'
+        )
+        with self.assertRaisesRegex(
+            AssertionError, "SecRule id:9522061 has no chain action"
         ):
             parser_pattern(source, 9522061)
 
