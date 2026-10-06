@@ -28,7 +28,7 @@ class FtwIgnoreTests(unittest.TestCase):
     def test_replacement_ignore_is_rejected(self):
         changed = copy.deepcopy(self.settings)
         ignored = changed["testoverride"]["ignore"]
-        ignored["9522999-1"] = ignored.pop("9522205-2")
+        ignored["9522999-1"] = ignored.pop("9522309-1")
         with self.assertRaisesRegex(ValueError, "ignore IDs changed"):
             check_ignores(changed)
 
@@ -40,11 +40,19 @@ class FtwIgnoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "ignore IDs changed"):
             check_ignores(changed)
 
+    def test_restoring_long_php_upload_ignore_is_rejected(self):
+        changed = copy.deepcopy(self.settings)
+        changed["testoverride"]["ignore"]["9522205-2"] = (
+            "R6-APACHE-9522205: stale exclusion after matching path validation"
+        )
+        with self.assertRaisesRegex(ValueError, "ignore IDs changed"):
+            check_ignores(changed)
+
     def test_missing_or_vague_reason_is_rejected(self):
         for reason in (None, "", "investigate", "R6-NIT-IGNORE: too short"):
             with self.subTest(reason=reason):
                 changed = copy.deepcopy(self.settings)
-                changed["testoverride"]["ignore"]["9522205-2"] = reason
+                changed["testoverride"]["ignore"]["9522309-1"] = reason
                 with self.assertRaisesRegex(ValueError, "tracked reason required"):
                     check_ignores(changed)
 
