@@ -61,7 +61,10 @@ def extract_assertions(text):
 
 def replace_homepage_assertion(text, replacement):
     """Replace fp-homepage's output scalar, regardless of its YAML quoting."""
-    title = re.search(r"(?m)^  - test_title: fp-homepage$", text)
+    title = re.search(
+        r'''(?m)^  - test_title: (?:fp-homepage|'fp-homepage'|"fp-homepage")\s*$''',
+        text,
+    )
     if title is None:
         raise ValueError("fp-homepage is missing")
     next_title = re.search(r"(?m)^  - test_title:", text[title.end() :])
@@ -126,6 +129,21 @@ class FalsePositiveAssertionsTest(unittest.TestCase):
         )
         self.assertEqual(self.titles, titles)
         self.assertEqual(self.outputs, outputs)
+
+    def test_quoted_homepage_titles_select_the_homepage_assertion(self):
+        fixture = CORPUS.read_text()
+        replacement = '          no_log_contains: "replacement marker"'
+        for title in ("'fp-homepage'", '"fp-homepage"'):
+            with self.subTest(title=title):
+                quoted_fixture = fixture.replace(
+                    "  - test_title: fp-homepage", f"  - test_title: {title}", 1
+                )
+                mutated = replace_homepage_assertion(quoted_fixture, replacement)
+                titles, outputs = extract_assertions(mutated)
+                self.assertIn("fp-homepage", titles)
+                self.assertEqual(
+                    "replacement marker", outputs["fp-homepage"]["no_log_contains"]
+                )
 
     def test_nonzero_score_in_every_pl_slot_is_forbidden(self):
         for case in SCORE_CASES:
