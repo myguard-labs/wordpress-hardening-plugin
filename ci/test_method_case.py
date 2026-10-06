@@ -33,7 +33,7 @@ def method_rule(source, rule_id):
 def matches_method(source, rule_id, method):
     operator, actions = method_rule(source, rule_id)
     # Match the declared pipeline, so a missing transform makes this test red.
-    transforms = re.findall(r't:([A-Za-z]+)', actions)
+    transforms = re.findall(r"t:([A-Za-z]+)", actions)
     if not transforms or transforms[0] != "none":
         raise AssertionError(f"{rule_id} must reset inherited transforms")
     for transform in transforms[1:]:
@@ -81,7 +81,9 @@ class TestMethodCase(unittest.TestCase):
         self.assertRegex(actions, r"\bnolog,")
         self.assertNotRegex(actions, r"\b(?:log|auditlog),")
         threshold = RATELIMIT.split("id:9522412,", 1)[1]
-        self.assertIn("msg:'Wordpress hardening: wp-login.php rate limit exceeded", threshold)
+        self.assertIn(
+            "msg:'Wordpress hardening: wp-login.php rate limit exceeded", threshold
+        )
 
 
 if __name__ == "__main__":

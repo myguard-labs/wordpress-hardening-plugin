@@ -62,7 +62,7 @@ def extract_assertions(text):
 def replace_homepage_assertion(text, replacement):
     """Replace fp-homepage's output scalar, regardless of its YAML quoting."""
     title = re.search(
-        r'''(?m)^  - test_title: (?:fp-homepage|'fp-homepage'|"fp-homepage")\s*$''',
+        r"""(?m)^  - test_title: (?:fp-homepage|'fp-homepage'|"fp-homepage")\s*$""",
         text,
     )
     if title is None:
