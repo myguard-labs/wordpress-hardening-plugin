@@ -81,13 +81,16 @@ class LintWorkflowTests(unittest.TestCase):
         callee = CALLEE.read_text()
         self.assertRegex(callee, r"(?m)^  workflow_call:$")
         self.assertRegex(callee, r"(?m)^  check-syntax:$")
+        self.assertIn("permissions:\n  contents: read\n", callee)
         self.assertIn("    timeout-minutes: 20\n", callee)
         external_uses = re.findall(r"(?m)^\s+uses: (?!actions/)(\S+)", callee)
         self.assertEqual([], external_uses)
 
     def test_yaml_lint_is_executable(self):
         blocks = run_blocks(CALLEE.read_text())
-        yaml_blocks = [block for block in blocks if "python -m pip install yamllint" in block]
+        yaml_blocks = [
+            block for block in blocks if "python -m pip install yamllint==1.38.0" in block
+        ]
         self.assertEqual(1, len(yaml_blocks))
         self.assertIn("yamllint -f github -d 'extends: default", yaml_blocks[0])
         self.assertIn("min-spaces-from-content: 1' tests/regression", yaml_blocks[0])
@@ -105,10 +108,11 @@ class LintWorkflowTests(unittest.TestCase):
     def test_secrules_lint_is_executable(self):
         blocks = run_blocks(CALLEE.read_text())
         parser_blocks = [
-            block for block in blocks if "python -m pip install secrules-parsing" in block
+            block for block in blocks if "python -m pip install secrules-parsing==0.3.0" in block
         ]
         self.assertEqual(1, len(parser_blocks))
         commands = parser_blocks[0]
+        self.assertIn("python -m pip install --upgrade setuptools==80.10.2", commands)
         self.assertIn("secrules-parser -c -v --output-type github -f plugins/*.conf", commands)
 
 
