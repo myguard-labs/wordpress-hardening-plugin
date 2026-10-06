@@ -1,5 +1,6 @@
 """Exercise the CI-local rule and marker loops against isolated plugin fixtures."""
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -32,6 +33,52 @@ class CiLocalReadLoopTests(unittest.TestCase):
             ["bash", "scripts/ci-local.sh", mode], cwd=self.root,
             capture_output=True, text=True, check=False,
         )
+
+    def run_gate_with_portable_sed(self):
+        """Reject GNU sed's BRE optional-quote extension at the command boundary."""
+        shim_dir = self.root / "bin"
+        shim_dir.mkdir(exist_ok=True)
+        sed = shutil.which("sed")
+        self.assertIsNotNone(sed)
+        shim = shim_dir / "sed"
+        shim.write_text(
+            '#!/bin/sh\n'
+            'for arg do\n'
+            '  case "$arg" in *"\\\\?"*)\n'
+            '    printf "nonportable sed BRE: %s\\n" "$arg" >&2; exit 99;;\n'
+            '  esac\n'
+            'done\n'
+            f'exec "{sed}" "$@"\n',
+            encoding="utf-8",
+        )
+        shim.chmod(0o755)
+        env = os.environ.copy()
+        env["PATH"] = f"{shim_dir}{os.pathsep}{env['PATH']}"
+        return subprocess.run(
+            ["bash", "scripts/ci-local.sh", "--validate-files"], cwd=self.root,
+            env=env, capture_output=True, text=True, check=False,
+        )
+
+    def test_pmfromfile_paths_use_portable_sed(self):
+        for quoted in (False, True):
+            with self.subTest(quoted=quoted):
+                path = 'wordpress-hardening-files.data'
+                if quoted:
+                    path = f'"{path}"'
+                self.append(f'SecRule REQUEST_FILENAME "@pmFromFile {path}"')
+                result = self.run_gate_with_portable_sed()
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                self.assertIn("all @pmFromFile targets exist", result.stdout)
+                self.assertNotIn("nonportable sed BRE", result.stderr)
+
+    def test_pmfromfile_missing_path_is_reported_with_portable_sed(self):
+        self.append('SecRule REQUEST_FILENAME "@pmFromFile missing-unquoted.data"')
+        self.append('SecRule REQUEST_FILENAME "@pmFromFile "missing-quoted.data""')
+        result = self.run_gate_with_portable_sed()
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("referenced file not found: missing-unquoted.data", result.stdout)
+        self.assertIn("referenced file not found: missing-quoted.data", result.stdout)
+        self.assertNotIn("nonportable sed BRE", result.stderr)
 
     def append(self, line):
         with self.plugin.open("a") as plugin:

@@ -72,7 +72,7 @@ if [ "$MODE" != --validate-gates ]; then
 # ── lint.yml: @pmFromFile references resolve ────────────────────────────────
 note "pmFromFile references"
 while read -r line; do
-  f=$(printf '%s' "$line" | sed -n 's/.*@pmFromFile "\?\([^ "]*\).*/\1/p')
+  f=$(printf '%s' "$line" | sed -nE 's/.*@pmFromFile "?([^ "]*).*/\1/p')
   [ -n "$f" ] && [ ! -f "plugins/$f" ] && err "referenced file not found: $f"
 done < <(grep -rh "@pmFromFile" plugins/*.conf)
 [ "$FAIL" -eq 0 ] && ok "all @pmFromFile targets exist"
