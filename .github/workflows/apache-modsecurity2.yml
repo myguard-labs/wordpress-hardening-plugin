@@ -99,10 +99,7 @@ jobs:
         run: cat tests/integration/.ftw.yml
 
       - name: Run plugin regression suite
-        run: |
-          ./ftw check -d tests/regression --config tests/integration/.ftw.yml
-          ./ftw run   -d tests/regression --config tests/integration/.ftw.yml \
-            --show-failures-only
+        run: python3 ci/run_regression.py
 
       - name: Verify optional IP selection and plugin disable behavior
         run: python3 -m ci.check_optional_ip apache
