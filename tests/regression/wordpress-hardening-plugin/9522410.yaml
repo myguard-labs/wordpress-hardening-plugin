@@ -6,7 +6,7 @@ meta:
   name: 9522410.yaml
 tests:
   - test_title: 9522410-1
-    desc: Counter ticks silently for a non-whitelisted login; 9522412 tests the threshold.
+    desc: Counter ticks on non-whitelisted login; 9522412 tests threshold.
     stages:
       - input:
           dest_addr: 127.0.0.1
