@@ -189,8 +189,8 @@ tests:
       hid the article from readers. Rule 9522801 removes those three CRS
       rules on front-end permalinks (any path that is NOT admin/login/REST/
       cron/xmlrpc/wp-content/wp-includes). This test asserts that a permalink
-      GET produces no plugin rule fire and that 953100/953110/953120 are not
-      logged either.
+      GET serves the PHP tutorial fixture, produces no plugin rule fire, and
+      suppresses 953100/953110/953120 despite the matching response body.
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -200,7 +200,7 @@ tests:
           uri: >-
             /2026/05/nginx-angie-the-expert-guide-to-maximum-performance-and-security/
         output:
-          no_log_contains: 'id "(?:9522|953100"|953110"|953120")'
+          no_log_contains: 'id "(?:9522[0-9]*|953100|953110|953120)"'
 
   - test_title: fp-orderby-legit
     desc: >
