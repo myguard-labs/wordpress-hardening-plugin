@@ -6,10 +6,23 @@ meta:
   name: 9522122.yaml
 tests:
   - test_title: 9522122-1
+    desc: CI opt-in blocks an author archive
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            X-WPHard-Enable-Author-Archives: '1'
+          port: 80
+          method: GET
+          uri: /author/john-doe/
+        output:
+          log_contains: id "9522122"
+  - test_title: 9522122-2
     desc: >
-      block_author_archives is OFF by default — /author/john-doe must NOT
-      trigger 9522122 with default configuration. Most blogs want author
-      archives publicly reachable.
+      With no request opt-in, block_author_archives is OFF by default and
+      /author/john-doe must not trigger 9522122.
     stages:
       - input:
           dest_addr: 127.0.0.1

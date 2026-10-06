@@ -5,8 +5,22 @@ meta:
   enabled: true
   name: 9522107.yaml
 tests:
-  - test_title: 9522107
-    desc: Test if restapi works
+  - test_title: 9522107-1
+    desc: Public client is blocked from a REST API subpath
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            X-Forwarded-For: 8.8.8.8
+          port: 80
+          method: GET
+          uri: /wp-json/wp-statistics/v2/hit
+        output:
+          log_contains: id "9522107"
+  - test_title: 9522107-2
+    desc: Private client can still access a REST API subpath
     stages:
       - input:
           dest_addr: 127.0.0.1
