@@ -62,6 +62,11 @@ def budget_cases():
         cases.append((f"chunk-aggregate-{size}", values, blocked))
     cases.append(("duplicate-chunk-aggregate",
                   [("load[chunk_0]", "x" * 128)] * 8, True))
+    for key in ("Load", "Load[chunk_1]", "load[a]\nsuffix", " load[chunk_1]"):
+        for size, blocked in ((79, False), (80, True), (81, True)):
+            cases.append((f"mixed-chunk-{key!r}-{size}",
+                          [("load[chunk_0]", "x" * 40), (key, "y" * (size - 40))],
+                          blocked))
     return cases
 
 
@@ -128,6 +133,10 @@ class LoadBudgetTests(unittest.TestCase):
     def test_aggregate_regression(self):
         self.check_cases([("aggregate-strict-cutoff",
                            [("load[a]", "x" * 40), ("load[b]", "y" * 40)], True)])
+
+    def test_mixed_key_regression(self):
+        self.check_cases([("mixed-key-strict-cutoff",
+                           [("load[chunk_0]", "x" * 40), ("Load", "y" * 40)], True)])
 
     def test_normalized_paths(self):
         for path in ("/wp-admin/load-scr%69pts.php", "/wp-admin/./load-scripts.php",
