@@ -8,8 +8,8 @@ tests:
   - test_title: 9522412-1
     desc: >
       A GET must not count. Mixed-case POSTs to /wp-login.php from the same
-      non-whitelisted IP must tick rule 9522411; the fifth POST must reach the
-      default threshold and fire 9522412. Stages share collection state.
+      non-whitelisted IP must tick silent rule 9522411; the fifth POST must
+      reach the default threshold and log rule 9522412. Stages share state.
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -34,7 +34,7 @@ tests:
           uri: /wp-login.php
           data: log=admin&pwd=wrong1
         output:
-          log_contains: id "9522411"
+          no_log_contains: id "9522411"
       - input:
           dest_addr: 127.0.0.1
           headers:

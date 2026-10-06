@@ -5,10 +5,12 @@ from pathlib import Path
 
 import yaml
 
+# Keys are YAML suite filename stems (for example, 9522410.yaml -> 9522410).
 # These suites cannot assert their own logged hit: disabled defaults, silent
 # actions, allowed traffic, or a private-address-only harness client.
 NO_POSITIVE_RULES = {
     "9522107",  # REST access remains allowed.
+    "9522410",  # Counter and gate are silent; 9522412 tests the threshold.
     "9522111",  # wp-cron remains allowed by default.
     "9522115",  # plugin readme blocking is off by default.
     "9522122",  # author archive blocking is off by default.
