@@ -6,6 +6,7 @@ import secrets
 import subprocess
 import sys
 import tempfile
+from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,8 +34,16 @@ def fresh_addresses(count: int) -> list[str]:
 def prepare_suites(source: Path, target: Path, addresses: list[str]) -> None:
     if len(addresses) != sum(map(len, RATE_LIMIT_IDENTITIES.values())):
         raise ValueError("one fresh address is required per rate-limit identity")
+    originals = sorted(source.rglob("*.yaml"))
+    fixture_counts = Counter(path.name for path in originals
+                             if path.name in RATE_LIMIT_IDENTITIES)
+    for name in RATE_LIMIT_IDENTITIES:
+        if fixture_counts[name] == 0:
+            raise ValueError(f"missing rate-limit fixture: {name}")
+        if fixture_counts[name] != 1:
+            raise ValueError(f"duplicate rate-limit fixture: {name}")
     mapping = iter(addresses)
-    for original in sorted(source.rglob("*.yaml")):
+    for original in originals:
         relative = original.relative_to(source)
         destination = target / relative
         destination.parent.mkdir(parents=True, exist_ok=True)

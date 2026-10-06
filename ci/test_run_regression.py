@@ -1,6 +1,7 @@
 """Check isolation of stateful go-ftw identities without changing assertions."""
 
 import io
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -12,6 +13,49 @@ from run_regression import RATE_LIMIT_IDENTITIES, SUITES, prepare_suites, run_ft
 
 
 class RegressionIsolationTests(unittest.TestCase):
+    def copy_rate_limit_fixtures(self, source: Path) -> None:
+        for name in RATE_LIMIT_IDENTITIES:
+            original = SUITES / "wordpress-hardening-plugin" / name
+            destination = source / "wordpress-hardening-plugin" / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(original, destination)
+
+    def test_all_configured_fixtures_are_prepared_once(self):
+        count = sum(map(len, RATE_LIMIT_IDENTITIES.values()))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, target = root / "source", root / "output"
+            self.copy_rate_limit_fixtures(source)
+            prepare_suites(source, target,
+                           [f"198.18.0.{n}" for n in range(1, count + 1)])
+            self.assertEqual(set(RATE_LIMIT_IDENTITIES),
+                             {path.name for path in target.rglob("*.yaml")})
+
+    def test_missing_configured_fixture_fails_closed(self):
+        count = sum(map(len, RATE_LIMIT_IDENTITIES.values()))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, target = root / "source", root / "output"
+            self.copy_rate_limit_fixtures(source)
+            (source / "wordpress-hardening-plugin/9522510.yaml").unlink()
+            with self.assertRaisesRegex(ValueError, "missing rate-limit fixture.*9522510.yaml"):
+                prepare_suites(source, target,
+                               [f"198.18.0.{n}" for n in range(1, count + 1)])
+            self.assertFalse(target.exists())
+
+    def test_duplicate_configured_fixture_fails_closed(self):
+        count = sum(map(len, RATE_LIMIT_IDENTITIES.values()))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, target = root / "source", root / "output"
+            self.copy_rate_limit_fixtures(source)
+            shutil.copyfile(source / "wordpress-hardening-plugin/9522510.yaml",
+                            source / "9522510.yaml")
+            with self.assertRaisesRegex(ValueError, "duplicate rate-limit fixture.*9522510.yaml"):
+                prepare_suites(source, target,
+                               [f"198.18.0.{n}" for n in range(1, count + 1)])
+            self.assertFalse(target.exists())
+
     def test_fresh_run_preserves_stages_and_assertions(self):
         count = sum(map(len, RATE_LIMIT_IDENTITIES.values()))
         with tempfile.TemporaryDirectory() as directory:
@@ -35,8 +79,8 @@ class RegressionIsolationTests(unittest.TestCase):
         count = sum(map(len, RATE_LIMIT_IDENTITIES.values()))
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "source"
+            self.copy_rate_limit_fixtures(source)
             fixture = source / "wordpress-hardening-plugin/9522412.yaml"
-            fixture.parent.mkdir(parents=True)
             fixture.write_text("tests: []\n")
             with self.assertRaisesRegex(ValueError, "missing X-Forwarded-For"):
                 prepare_suites(source, Path(directory) / "output",
