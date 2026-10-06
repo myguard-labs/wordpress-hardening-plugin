@@ -84,11 +84,34 @@ class InfoLeakPathTests(unittest.TestCase):
             for suffix in ("", "?mode=check")
         ])
 
-    def test_non_executable_suffixes_stay_unmatched(self):
+    def test_static_file_path_info(self):
         self.check_paths([
             path + suffix for path in NON_EXECUTABLES
-            for suffix in ("/", "/extra", ".bak", "%2fextra")
+            for suffix in ("/", "/extra", "/extra/nested.css", "/extra?mode=check",
+                           "%2fextra", "%2Fextra%2fnested.css?mode=check")
+        ])
+
+    def test_static_file_normalized_paths(self):
+        self.check_paths([
+            "/r%65adme.html/extra", "/LICENSE.TXT/extra",
+            "/./.user.ini/extra", "/wp-includes/./wlwmanifest.xml/extra",
+            "http://localhost/wp-content/debug.log/extra?mode=check",
+        ])
+
+    def test_static_filename_near_misses(self):
+        self.check_paths([
+            path + suffix for path in NON_EXECUTABLES
+            for suffix in (".bak", ".bak/extra", "x/extra", "%2ebak/extra")
         ], matches=False)
+
+    def test_static_single_decode_and_query_boundaries(self):
+        self.check_paths([
+            path + suffix for path in NON_EXECUTABLES
+            for suffix in ("%252fextra", "%2/extra", "%GG/extra", "%00/extra",
+                           "%3fextra", "%23extra")
+        ] + ["/search?path=" + path + "/extra" for path in NON_EXECUTABLES]
+          + ["/r%2565adme.html/extra",
+             "http://localhost/search?path=/readme.html/extra"], matches=False)
 
     def test_php_filename_near_misses(self):
         self.check_paths([
@@ -109,8 +132,10 @@ class InfoLeakPathTests(unittest.TestCase):
         ], matches=False)
 
     def test_info_leak_feature_disabled(self):
-        self.check_paths([path + "/extra" for path in EXECUTABLES],
-                         matches=False, settings=("wphard.block_info_leak_files=0",))
+        self.check_paths([
+            path + suffix for path in (*EXECUTABLES, *NON_EXECUTABLES)
+            for suffix in ("", "/", "/extra/nested", "/extra?mode=check", "%2fextra")
+        ], matches=False, settings=("wphard.block_info_leak_files=0",))
 
     def test_plugin_readme_ships_disabled(self):
         # No CI opt-in fixture: assert the initialized value and actual behavior.

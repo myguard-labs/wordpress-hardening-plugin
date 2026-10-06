@@ -40,8 +40,10 @@ the Coraza default fixture load the shipped rules without that override and
 assert the disabled behavior. The unit suite also checks that explicit opt-in
 still enables the rule.
 
-Rule 9522100 tests cover installer PHP PATH_INFO suffixes, exact non-executable
-files, filename near-misses, and the existing raw-path single-decode behavior.
+Rule 9522100 tests cover exact filenames and slash-delimited PATH_INFO for
+installers and named static files, filename near-misses, and the existing
+raw-path single-decode behavior. Static-file suffixes cover optional origin
+configurations that accept PATH_INFO; no default static-file exposure is assumed.
 The tests assert the specific rule ID: other plugin rules may independently
 match a filename near-miss. All engine cases use inert requests and a stub
 origin; they do not run a WordPress installer.
