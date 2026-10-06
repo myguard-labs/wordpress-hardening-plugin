@@ -12,14 +12,19 @@ RATELIMIT = (ROOT / "wordpress-hardening-ratelimit.conf").read_text()
 def method_rule(source, rule_id):
     """Return the method operator and actions for one named SecRule."""
     if rule_id == 9522119:
-        chain = source.split("id:9522119,", 1)[1].split("\n\n", 1)[0]
+        marker = f"id:{rule_id},"
+        if marker not in source:
+            raise AssertionError(f"REQUEST_METHOD rule {rule_id} is missing")
+        chain = source.split(marker, 1)[1].split("\n\n", 1)[0]
         match = re.search(r'SecRule REQUEST_METHOD "([^"]+)"\s*\\\s*"([^"]+)"', chain)
     else:
         rules = re.finditer(
             r'SecRule REQUEST_METHOD "([^"]+)"\s*\\\s*"([^"]+)"', source
         )
-        match = next((rule for rule in rules if rule.group(2).startswith(
-            f"id:{rule_id},")), None)
+        match = next(
+            (rule for rule in rules if rule.group(2).startswith(f"id:{rule_id},")),
+            None,
+        )
     if match is None:
         raise AssertionError(f"REQUEST_METHOD rule {rule_id} is missing")
     return match.groups()
@@ -28,7 +33,7 @@ def method_rule(source, rule_id):
 def matches_method(source, rule_id, method):
     operator, actions = method_rule(source, rule_id)
     # Match the declared pipeline, so a missing transform makes this test red.
-    transforms = re.findall(r't:([A-Za-z]+)', actions)
+    transforms = re.findall(r"t:([A-Za-z]+)", actions)
     if not transforms or transforms[0] != "none":
         raise AssertionError(f"{rule_id} must reset inherited transforms")
     for transform in transforms[1:]:
@@ -43,6 +48,12 @@ def matches_method(source, rule_id, method):
 
 
 class TestMethodCase(unittest.TestCase):
+    def test_missing_method_rule_has_named_diagnostic(self):
+        with self.assertRaisesRegex(
+            AssertionError, "REQUEST_METHOD rule 9522119 is missing"
+        ):
+            method_rule("", 9522119)
+
     def test_uncommon_method_negative_control_mixed_case_allowed(self):
         for method in ("GET", "get", "Post", "hEaD", "options"):
             with self.subTest(method=method):
@@ -70,7 +81,9 @@ class TestMethodCase(unittest.TestCase):
         self.assertRegex(actions, r"\bnolog,")
         self.assertNotRegex(actions, r"\b(?:log|auditlog),")
         threshold = RATELIMIT.split("id:9522412,", 1)[1]
-        self.assertIn("msg:'Wordpress hardening: wp-login.php rate limit exceeded", threshold)
+        self.assertIn(
+            "msg:'Wordpress hardening: wp-login.php rate limit exceeded", threshold
+        )
 
 
 if __name__ == "__main__":
