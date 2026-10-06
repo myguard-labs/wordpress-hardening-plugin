@@ -27,11 +27,23 @@ class RateLimitModeTests(unittest.TestCase):
             mutated = Path(temporary) / "mutated"
             limiter.stage(normal, "ratelimit", "198.18.0.1")
             limiter.stage(mutated, "ratelimit", "198.18.0.1", "remove-deny")
-            self.assertIn("deny,status:429", (normal / "wordpress-hardening-ratelimit.conf").read_text())
-            self.assertNotIn("deny,status:429", (mutated / "wordpress-hardening-ratelimit.conf").read_text())
-            self.assertEqual(original, (limiter.xff.ROOT / "plugins/wordpress-hardening-ratelimit.conf").read_text())
-            self.assertIn("ratelimit_login_attempts=3", (normal / "zzz-ci-ratelimit-config.conf").read_text())
-            self.assertIn("wordpress-hardening-ratelimit.conf", (normal / "zzz-ci-ratelimit-before.conf").read_text())
+            self.assertIn(
+                "deny,status:429", (normal / "wordpress-hardening-ratelimit.conf").read_text()
+            )
+            self.assertNotIn(
+                "deny,status:429", (mutated / "wordpress-hardening-ratelimit.conf").read_text()
+            )
+            self.assertEqual(
+                original,
+                (limiter.xff.ROOT / "plugins/wordpress-hardening-ratelimit.conf").read_text(),
+            )
+            self.assertIn(
+                "ratelimit_login_attempts=3", (normal / "zzz-ci-ratelimit-config.conf").read_text()
+            )
+            self.assertIn(
+                "wordpress-hardening-ratelimit.conf",
+                (normal / "zzz-ci-ratelimit-before.conf").read_text(),
+            )
 
     def test_http_asserts_limit_boundary_and_separate_client(self):
         def run(statuses):
@@ -42,7 +54,10 @@ class RateLimitModeTests(unittest.TestCase):
                 mock.patch.object(limiter.xff, "run", return_value="true"),
             ):
                 limiter.check("apache", "ratelimit", "http://fixture", "server", False)
-            clients = [call.args[0].headers["X-forwarded-for"] for call in opener.open.call_args_list[1:]]
+            clients = [
+                call.args[0].headers["X-forwarded-for"]
+                for call in opener.open.call_args_list[1:]
+            ]
             self.assertEqual(["198.51.100.100", "198.51.100.100", "198.51.100.101",
                               "198.51.100.100", "198.51.100.101"], clients)
 
