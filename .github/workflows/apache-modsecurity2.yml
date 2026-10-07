@@ -49,6 +49,9 @@ jobs:
       - name: Verify PHP PATH_INFO at Apache and nginx origins
         run: bash ci/test_static_pathinfo_origins.sh
 
+      - name: Compare bounded HTTP framing through both engines
+        run: python3 -m ci.check_smuggle_diff
+
       - name: Stage plugins dir (real plugins + CI extras)
         run: |
           rm -rf tests/integration/.plugins-staged

@@ -66,6 +66,14 @@ The shared DetectionOnly regression stack and XFF On-mode probes are unchanged.
 
 ## Run locally
 
+`python3 -m ci.check_smuggle_diff` runs one inert Content-Length plus
+Transfer-Encoding request and a valid POST through the pinned Apache/v2 and
+nginx/v3 images. It uses separate disposable recording origins and asserts the
+response status, origin-observed headers and body, and audit presence. Apache
+forwards the ambiguous request with `Content-Length: 0`; nginx rejects it with
+HTTP 400 before it reaches its origin. Both forward the valid four-byte POST.
+The Apache workflow runs this focused comparison on every change.
+
 From the repo root:
 
 ```bash
