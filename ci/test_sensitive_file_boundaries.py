@@ -21,18 +21,100 @@ EXCEPTIONS = (
 )
 
 
+def request_filename_rules(rules=RULES):
+    return tuple(
+        match for match in re.finditer(
+            r'^SecRule REQUEST_FILENAME "(?P<selector>[^\"]+)" \\\n'
+            r'\s+"(?P<actions>(?:[^"\\]|\\\\|\\\n)*)"',
+            rules,
+            re.MULTILINE,
+        )
+    )
+
+
+def action_tokens(actions):
+    """Split SecRule actions at commas outside single-quoted values."""
+    actions = actions.replace('\\\n', '')
+    tokens = []
+    start = 0
+    quoted = False
+    escaped = False
+    for index, char in enumerate(actions):
+        if escaped:
+            escaped = False
+        elif char == '\\':
+            escaped = True
+        elif char == "'":
+            quoted = not quoted
+        elif char == ',' and not quoted:
+            tokens.append(actions[start:index].strip())
+            start = index + 1
+    if quoted:
+        raise ValueError('unterminated quoted SecRule action')
+    tokens.append(actions[start:].strip())
+    return tuple(tokens)
+
+
+def sensitive_rule_match(rules):
+    return next(
+        (match for match in request_filename_rules(rules)
+         if 'id:9522202' in action_tokens(match.group('actions'))),
+        None,
+    )
+
+
+def directive_actions(directive_text, is_script):
+    logical_line = ''
+    for line in directive_text.splitlines(keepends=True):
+        logical_line += line
+        if not line.rstrip('\r\n').endswith('\\'):
+            break
+    # Keep hashes inside quoted action values, but ignore trailing comments.
+    quoted_value = False
+    escaped = False
+    for position, char in enumerate(logical_line):
+        if escaped:
+            escaped = False
+        elif char == '\\':
+            escaped = True
+        elif char == '"':
+            quoted_value = not quoted_value
+        elif char == '#' and not quoted_value:
+            logical_line = logical_line[:position]
+            break
+    quoted = re.findall(r'"((?:[^"\\]|\\[\s\S])*)"', logical_line)
+    if (is_script and logical_line.split(None, 1)[1].lstrip().startswith('"')
+            and len(quoted) == 1):
+        return None  # A quoted script path is not an action list.
+    return quoted[-1] if quoted else None
+
+
+def sensitive_rule_chain(rules, match):
+    directives = tuple(re.finditer(r'^[ \t]*Sec(?:RuleScript|Rule|Action|Marker)\b',
+                                   rules[match.end():], re.MULTILINE))
+    actions = match.group('actions')
+    for directive in directives:
+        end = match.end() + directive.start()
+        name = directive.group().lstrip()
+        if 'chain' not in action_tokens(actions) or not name.startswith('SecRule'):
+            return rules[match.start():end]
+        actions = directive_actions(rules[end:], name.startswith('SecRuleScript'))
+        if actions is None:
+            return rules[match.start():end]
+    return rules[match.start():]
+
+
 class TestSensitiveFileBoundaries(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        rule = RULES.split('id:9522202,', 1)[1].split('id:9522208,', 1)[0]
-        if 'chain"' not in rule:
+        cls.sensitive_rule = sensitive_rule_match(RULES)
+        if cls.sensitive_rule is None:
+            raise AssertionError('9522202 action list is missing')
+        if 'chain' not in action_tokens(cls.sensitive_rule.group('actions')):
             raise AssertionError('9522202 must chain from the broad data-file match')
-        if re.search(
-            r'SecRule REQUEST_FILENAME "@pmFromFile wordpress-hardening-files\.data"'
-            r'\s*\\\s*"id:9522202,', RULES
-        ) is None:
-            raise AssertionError('9522202 data-file match is missing')
-        match = re.search(r'SecRule REQUEST_FILENAME "!@rx ([^"]+)"', rule)
+        rule = sensitive_rule_chain(RULES, cls.sensitive_rule)
+        match = re.search(r'^[ \t]*SecRule REQUEST_FILENAME "!@rx ([^"]+)"',
+                          rule, re.MULTILINE)
         if match is None:
             raise AssertionError('9522202 negative exception is missing')
         cls.pattern = re.compile(match.group(1))
@@ -51,6 +133,69 @@ class TestSensitiveFileBoundaries(unittest.TestCase):
         for token in self.tokens:
             with self.subTest(token=token):
                 self.assertTrue(self.matches(token), token)
+
+    def test_sensitive_file_selector_and_id_share_rule_action_list(self):
+        rule = self.sensitive_rule
+        self.assertEqual(
+            '@pmFromFile wordpress-hardening-files.data',
+            rule.group('selector'),
+        )
+
+    def test_rule_action_id_ignores_quoted_text_and_action_order(self):
+        rules = (
+            'SecRule REQUEST_FILENAME "@rx decoy" \\\n'
+            '  "msg:\'quoted,id:9522202,decoy\',id:9522200,chain"\n'
+            'SecRule REQUEST_FILENAME "@pmFromFile wordpress-hardening-files.data" \\\n'
+            '  "msg:\'quoted,id:9522202,decoy\',chain,id:9522202,phase:2"\n'
+        )
+        match = sensitive_rule_match(rules)
+        self.assertIsNotNone(match)
+        self.assertEqual('@pmFromFile wordpress-hardening-files.data',
+                         match.group('selector'))
+
+    def test_sensitive_chain_stops_at_next_top_level_rule(self):
+        rules = (
+            'SecRule REQUEST_FILENAME "@pmFromFile wordpress-hardening-files.data" \\\n'
+            '  "id:9522202,chain"\n'
+            '  SecRule REQUEST_FILENAME "!@rx ^/allowed$" \\\n'
+            '    "t:none"\n'
+            'SecRule TX:other "@eq 1" \\\n'
+            '  "id:9522299,msg:\'SecRule REQUEST_FILENAME !@rx ^/wrong$\'"\n'
+        )
+        match = sensitive_rule_match(rules)
+        chain = sensitive_rule_chain(rules, match)
+        self.assertIn('!@rx ^/allowed$', chain)
+        self.assertNotIn('!@rx ^/wrong$', chain)
+
+    def test_unindented_continuation_belongs_to_chain(self):
+        rules = (
+            'SecRule REQUEST_FILENAME "@pmFromFile wordpress-hardening-files.data" \\\n'
+            '  "id:9522202,chain"\n'
+            'SecRule REQUEST_FILENAME "!@rx ^/allowed$" \\\n'
+            '  "t:none"\n'
+            'SecRule TX:other "@eq 1" \\\n'
+            '  "id:9522299,msg:\'SecRule REQUEST_FILENAME !@rx ^/wrong$\'"\n'
+        )
+        chain = sensitive_rule_chain(rules, sensitive_rule_match(rules))
+        self.assertIn('!@rx ^/allowed$', chain)
+        self.assertNotIn('!@rx ^/wrong$', chain)
+
+    def test_quoted_chain_text_does_not_extend_chain(self):
+        rules = (
+            'SecRule REQUEST_FILENAME "@pmFromFile wordpress-hardening-files.data" \\\n'
+            '  "id:9522202,chain"\n'
+            'SecRule REQUEST_FILENAME "!@rx ^/allowed$" \\\n'
+            '  "msg:\'quoted,chain,decoy\',t:none"\n'
+            'SecRule REQUEST_FILENAME "!@rx ^/wrong$" \\\n'
+            '  "t:none"\n'
+        )
+        chain = sensitive_rule_chain(rules, sensitive_rule_match(rules))
+        self.assertIn('!@rx ^/allowed$', chain)
+        self.assertNotIn('!@rx ^/wrong$', chain)
+
+    def test_malformed_quoted_action_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, 'unterminated quoted'):
+            action_tokens("msg:'unterminated,id:9522202,chain")
 
     def test_only_explicit_complete_paths_are_exempt(self):
         for path in EXCEPTIONS:
@@ -178,6 +323,79 @@ class TestSensitiveFileBoundaries(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertIsNone(fast_path_pattern.search(path), path)
 
+
+class TestSensitiveRuleChainParsing(unittest.TestCase):
+    def test_script_without_chain_ends_sensitive_chain(self):
+        rules = (
+            'SecRule REQUEST_FILENAME "@pmFromFile wordpress-hardening-files.data" \\\n'
+            '  "id:9522202,chain"\n'
+            'SecRuleScript "check.lua" "t:none"\n'
+            'SecRule REQUEST_FILENAME "!@rx ^/wrong$" \\\n'
+            '  "t:none"\n'
+        )
+        chain = sensitive_rule_chain(rules, sensitive_rule_match(rules))
+        self.assertIn('SecRuleScript "check.lua" "t:none"', chain)
+        self.assertNotIn('!@rx ^/wrong$', chain)
+
+    def test_script_path_named_chain_is_not_an_action(self):
+        rules = (
+            'SecRule REQUEST_FILENAME "@pmFromFile wordpress-hardening-files.data" \\\n'
+            '  "id:9522202,chain"\n'
+            'SecRuleScript "chain"\n'
+            'SecRule REQUEST_FILENAME "!@rx ^/wrong$" \\\n'
+            '  "t:none"\n'
+        )
+        chain = sensitive_rule_chain(rules, sensitive_rule_match(rules))
+        self.assertNotIn('!@rx ^/wrong$', chain)
+
+    def test_script_with_chain_keeps_negative_exception_inside(self):
+        rules = (
+            'SecRule REQUEST_FILENAME "@pmFromFile wordpress-hardening-files.data" \\\n'
+            '  "chain,id:9522202"\n'
+            'SecRuleScript "check.lua" "t:none,chain"\n'
+            'SecRule REQUEST_FILENAME "!@rx ^/allowed$" \\\n'
+            '  "t:none"\n'
+        )
+        chain = sensitive_rule_chain(rules, sensitive_rule_match(rules))
+        self.assertIn('!@rx ^/allowed$', chain)
+
+    def test_hash_inside_quoted_action_preserves_chain(self):
+        rules = (
+            'SecRule REQUEST_FILENAME "@pmFromFile wordpress-hardening-files.data" \\\n'
+            '  "id:9522202,chain"\n'
+            'SecRule REQUEST_FILENAME "@rx ^/first$" \\\n'
+            '  "msg:\'tag#1\',chain" # "t:none"\n'
+            'SecRule REQUEST_FILENAME "!@rx ^/allowed$" \\\n'
+            '  "t:none"\n'
+        )
+        chain = sensitive_rule_chain(rules, sensitive_rule_match(rules))
+        self.assertIn('!@rx ^/allowed$', chain)
+
+    def test_crlf_continuation_preserves_chain(self):
+        rules = (
+            'SecRule REQUEST_FILENAME "@pmFromFile wordpress-hardening-files.data" \\\n'
+            '  "id:9522202,chain"\n'
+            'SecRule REQUEST_FILENAME "@rx ^/first$" \\\n'
+            '  "t:none,chain"\n'
+            'SecRule REQUEST_FILENAME "!@rx ^/allowed$" \\\n'
+            '  "t:none"\n'
+        ).replace('"@rx ^/first$" \\\n', '"@rx ^/first$" \\\r\n')
+        chain = sensitive_rule_chain(rules, sensitive_rule_match(rules))
+        self.assertIn('!@rx ^/allowed$', chain)
+
+    def test_comment_cannot_move_negative_exception_into_chain(self):
+        rules = (
+            'SecRule REQUEST_FILENAME "@pmFromFile wordpress-hardening-files.data" \\\n'
+            '  "id:9522202,chain"\n'
+            'SecRule REQUEST_FILENAME "@rx ^/first$" \\\n'
+            '  "t:none"\n'
+            '# "chain"\n'
+            'SecRule REQUEST_FILENAME "!@rx ^/wrong$" \\\n'
+            '  "t:none"\n'
+        )
+        chain = sensitive_rule_chain(rules, sensitive_rule_match(rules))
+        self.assertIn('@rx ^/first$', chain)
+        self.assertNotIn('!@rx ^/wrong$', chain)
 
 if __name__ == '__main__':
     unittest.main()
