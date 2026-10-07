@@ -60,7 +60,7 @@ def probe(engine, case, request, image, network, gateway, staged, audit):
     origin.listen(1)
     seen = []
     thread = threading.Thread(target=receive_once, args=(origin, seen), daemon=True)
-    thread.start()
+    listener_started = False
     name = network + "-" + engine + "-" + case
     try:
         audit.write_text("")
@@ -78,6 +78,9 @@ def probe(engine, case, request, image, network, gateway, staged, audit):
         for _ in range(30):
             try:
                 with socket.create_connection((address, 8080), timeout=1) as conn:
+                    if not listener_started:
+                        thread.start()
+                        listener_started = True
                     conn.settimeout(8)
                     conn.sendall(request)
                     while len(response) < LIMIT:
@@ -104,7 +107,8 @@ def probe(engine, case, request, image, network, gateway, staged, audit):
     finally:
         subprocess.run(["docker", "rm", "-f", name], check=False, capture_output=True)
         origin.close()
-        thread.join(timeout=1)
+        if listener_started:
+            thread.join(timeout=1)
 
 
 def assert_observations(records):
