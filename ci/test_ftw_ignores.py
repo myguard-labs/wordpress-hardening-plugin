@@ -14,7 +14,8 @@ class FtwIgnoreTests(unittest.TestCase):
     def setUp(self):
         self.settings = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
 
-    def test_committed_apache_exclusions_have_tracked_reasons(self):
+    def test_committed_apache_exclusions_are_empty(self):
+        self.assertEqual({}, self.settings["testoverride"]["ignore"])
         check_ignores(self.settings)
 
     def test_new_ignore_is_rejected(self):
@@ -22,13 +23,6 @@ class FtwIgnoreTests(unittest.TestCase):
         changed["testoverride"]["ignore"]["9522999-1"] = (
             "R6-NIT-IGNORE: simulated new exclusion with a full explanation"
         )
-        with self.assertRaisesRegex(ValueError, "ignore IDs changed"):
-            check_ignores(changed)
-
-    def test_replacement_ignore_is_rejected(self):
-        changed = copy.deepcopy(self.settings)
-        ignored = changed["testoverride"]["ignore"]
-        ignored["9522999-1"] = ignored.pop("9522317-1")
         with self.assertRaisesRegex(ValueError, "ignore IDs changed"):
             check_ignores(changed)
 
@@ -47,14 +41,6 @@ class FtwIgnoreTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "ignore IDs changed"):
             check_ignores(changed)
-
-    def test_missing_or_vague_reason_is_rejected(self):
-        for reason in (None, "", "investigate", "R6-NIT-IGNORE: too short"):
-            with self.subTest(reason=reason):
-                changed = copy.deepcopy(self.settings)
-                changed["testoverride"]["ignore"]["9522317-1"] = reason
-                with self.assertRaisesRegex(ValueError, "tracked reason required"):
-                    check_ignores(changed)
 
     def test_malformed_ignore_mapping_is_rejected(self):
         for ignored in (None, ["9522120-1"], {9522120: "reason"}):
