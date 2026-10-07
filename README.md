@@ -198,21 +198,31 @@ Include /path/to/plugins/wordpress-hardening-ratelimit.conf
 > is a fatal error. On libmodsec3 or Coraza, prefer your webserver's
 > native rate-limiter (e.g. nginx/Angie's `limit_req zone=...`) or
 > fail2ban for `/wp-login.php`.
-
-> **⚠️ Collection growth (DoS):** `initcol:ip=%{client_ip}` creates one
-> SDBM entry per resolved IP under `SecDataDir`. The plugin does NOT set
-> `SecCollectionTimeout` (the CRS plugin convention says only operators
-> may set it). On a server with direct internet exposure, an attacker
-> rotating real source IPs (easy over IPv6) can grow the collection file
-> unboundedly. Disabling proxy pinning also permits forged XFF keys. Operators MUST:
 >
-> 1. Set `SecCollectionTimeout 300` (or higher) in the engine config.
-> 2. Place `SecDataDir` on a partition that can absorb growth or has a
->    housekeeping cron.
-> 3. Keep [Trusted-Proxy Pinning](#trusted-proxy-pinning) enabled so the
->    counter uses the peer or a client forwarded by a listed proxy.
+> **⚠️ Collection growth (DoS):** `initcol:ip=%{client_ip}` creates one
+> SDBM entry per resolved IP under `SecDataDir`. Expiring the
+> `ip.login_attempts` variable after 60 seconds does not remove the
+> collection's SDBM record in the tested Apache/mod_security2 setup. A
+> disposable probe found
+> 20 distinct records still present after `SecCollectionTimeout 3` elapsed;
+> a new client raised the count to 21. The plugin does not set this
+> engine-wide directive, and setting it alone does not bound disk growth
+> from clients that never return. Directly exposed servers can receive
+> rotating real source IPs (especially IPv6); disabling proxy pinning also
+> permits forged XFF keys. Operators should:
+>
+> 1. Prefer a webserver or edge limiter with bounded storage for
+>    internet-facing login traffic.
+> 2. If using this optional rule, keep
+>    [Trusted-Proxy Pinning](#trusted-proxy-pinning) enabled, monitor
+>    `SecDataDir` usage, and provision an explicit capacity limit and
+>    maintenance procedure. Rotate the SDBM files only while Apache is
+>    stopped; this resets active counters.
+> 3. Set `SecCollectionTimeout` in the engine config for logical
+>    collection expiry, but do not treat it as SDBM file reclamation.
 
-**Default settings:**
+**Settings when the optional file is included:**
+
 - **Enabled by default** (`ratelimit_login_enabled`)
 - **5 login attempts** per IP (`ratelimit_login_attempts`)
 - **60 second window** (fixed — not configurable)
