@@ -8,6 +8,7 @@ Keep this list explicit so adding a CRS-core check cannot silently block CI.
 import subprocess
 import sys
 import tempfile
+from glob import glob
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,11 +31,35 @@ SUPPORTED = (
 
 
 def check(rule_files, executable="crs-linter"):
+    matched_files = []
+    unmatched = []
+    non_files = []
+    for pattern in rule_files:
+        candidate = Path(pattern)
+        search_pattern = str(candidate if candidate.is_absolute() else ROOT / candidate)
+        matches = sorted(glob(search_pattern))
+        if matches:
+            for match in matches:
+                if Path(match).is_file():
+                    matched_files.append(match)
+                else:
+                    non_files.append(match)
+        else:
+            unmatched.append(pattern)
+    if unmatched:
+        for pattern in unmatched:
+            print(f"crs-linter subset: no rule files matched: {pattern}", file=sys.stderr)
+        return 1
+    if non_files:
+        for path in non_files:
+            print(f"crs-linter subset: matched path is not a rule file: {path}", file=sys.stderr)
+        return 1
+
     with tempfile.TemporaryDirectory() as directory:
         tags = Path(directory) / "tags"
         tags.write_text("")
         command = [executable, "-d", str(ROOT), "-t", str(tags)]
-        for path in rule_files:
+        for path in matched_files:
             command.extend(("-r", str(path)))
         result = subprocess.run(command, capture_output=True, text=True, check=False)
 

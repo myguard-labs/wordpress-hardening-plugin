@@ -29,6 +29,14 @@ class CrsLinterGateTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn("crs-linter subset: passed", result.stdout)
 
+    def test_matching_rule_glob_passes(self):
+        result = subprocess.run(
+            ["python3", str(GATE), str(ROOT / "plugins/wordpress-hardening-before.*")],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("crs-linter subset: passed", result.stdout)
+
     def test_pass_without_nolog_fails_named_gate(self):
         source = BEFORE.read_text()
         marker = "#crs-linter:ignore:pass_nolog"
@@ -45,6 +53,48 @@ class CrsLinterGateTests(unittest.TestCase):
 
 
 class CrsLinterWiringTests(unittest.TestCase):
+    def test_nonexistent_literal_rule_path_fails(self):
+        missing = ROOT / "plugins/does-not-exist.conf"
+        result = subprocess.run(
+            ["python3", str(GATE), str(missing)],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn(f"no rule files matched: {missing}", result.stderr)
+
+    def test_unmatched_rule_glob_fails(self):
+        unmatched = ROOT / "plugins/no-such-rule-*.conf"
+        result = subprocess.run(
+            ["python3", str(GATE), str(unmatched)],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn(f"no rule files matched: {unmatched}", result.stderr)
+
+    def test_directory_only_rule_glob_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            rule_dir = Path(directory) / "rule-directory"
+            rule_dir.mkdir()
+            result = subprocess.run(
+                ["python3", str(GATE), str(Path(directory) / "*")],
+                capture_output=True, text=True, check=False,
+            )
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn(f"matched path is not a rule file: {rule_dir}", result.stderr)
+
+    def test_mixed_file_and_directory_glob_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            rule_dir = Path(directory) / "rule-directory"
+            rule_dir.mkdir()
+            rule_file = Path(directory) / "rule.conf"
+            rule_file.write_text("SecRule ARGS \"@rx foo\" \"id:9522121,phase:1,deny\"\n")
+            result = subprocess.run(
+                ["python3", str(GATE), str(Path(directory) / "*")],
+                capture_output=True, text=True, check=False,
+            )
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn(f"matched path is not a rule file: {rule_dir}", result.stderr)
+
     def test_ci_and_local_run_named_gate(self):
         workflow = yaml.safe_load((ROOT / ".github/workflows/plugin-lint.yml").read_text())
         steps = workflow["jobs"]["check-syntax"]["steps"]
