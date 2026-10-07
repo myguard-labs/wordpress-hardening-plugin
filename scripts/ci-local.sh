@@ -116,6 +116,13 @@ if python3 -c "import secrules_parsing" 2>/dev/null; then
   printf '%s' "$OUT" | grep -qi 'invalid' && err "secrules-parsing reported invalid syntax"
   [ "$FAIL" -eq 0 ] && ok "secrules-parsing: all files OK"
 fi
+
+note "crs-linter plugin-compatible subset"
+if command -v crs-linter >/dev/null 2>&1 && python3 ci/check_crs_linter.py; then
+  ok "crs-linter plugin-compatible subset"
+else
+  err "crs-linter plugin-compatible subset failed (install crs-linter==1.2.0)"
+fi
 fi
 
 fi
