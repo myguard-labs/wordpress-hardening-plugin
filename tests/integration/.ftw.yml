@@ -8,12 +8,4 @@ testoverride:
     dest_addr: "127.0.0.1"
     port: 8001
     override_empty_host_header: true
-  # Apache + mod_security2 exclusions. Each reason names a tracked row and
-  # the observed mismatch; ci/check_ftw_positives.py locks these two IDs.
-  ignore:
-    "9522317-1": >-
-      R6-9522317-OVERLAP: 9522100 phase-1 block precedes install.php
-      assertion
-    "9522317-2": >-
-      R6-9522317-OVERLAP: 9522100 phase-1 block precedes setup-config.php
-      assertion
+  ignore: {}

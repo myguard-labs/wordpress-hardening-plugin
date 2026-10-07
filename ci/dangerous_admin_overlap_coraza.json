@@ -1,0 +1,58 @@
+[
+  {
+    "name": "dangerous-admin-install.php",
+    "uri": "/wp-admin/install.php",
+    "expect_ids": [
+      9522100
+    ],
+    "no_expect_ids": [
+      9522317
+    ]
+  },
+  {
+    "name": "dangerous-admin-setup-config.php",
+    "uri": "/wp-admin/setup-config.php",
+    "expect_ids": [
+      9522100
+    ],
+    "no_expect_ids": [
+      9522317
+    ]
+  },
+  {
+    "name": "dangerous-admin-upgrade.php",
+    "uri": "/wp-admin/upgrade.php",
+    "expect_ids": [
+      9522317
+    ],
+    "no_expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "dangerous-admin-wp-activate.php",
+    "uri": "/wp-admin/wp-activate.php",
+    "expect_ids": [
+      9522317
+    ],
+    "no_expect_ids": [
+      9522100
+    ]
+  },
+  {
+    "name": "dangerous-admin-outside-admin",
+    "uri": "/other/upgrade.php",
+    "no_expect_ids": [
+      9522100,
+      9522317
+    ]
+  },
+  {
+    "name": "dangerous-admin-unrelated-admin",
+    "uri": "/wp-admin/index.php",
+    "no_expect_ids": [
+      9522100,
+      9522317
+    ]
+  }
+]

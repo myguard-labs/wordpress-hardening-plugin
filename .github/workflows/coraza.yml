@@ -58,7 +58,8 @@ jobs:
         run: |
           for fixture in ../../ci/static_pathinfo_coraza.json \
             ../../ci/method_case_coraza.json \
-            ../../ci/urldecode_coraza.json; do
+            ../../ci/urldecode_coraza.json \
+            ../../ci/dangerous_admin_overlap_coraza.json; do
             "$RUNNER_TEMP/coraza-probe" -tx "$fixture" \
               ../../plugins/wordpress-hardening-config.conf \
               ../../tests/integration/ci-plugin/zzz-ci-config.conf \
