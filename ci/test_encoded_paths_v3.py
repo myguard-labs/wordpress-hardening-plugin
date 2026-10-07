@@ -4,7 +4,7 @@ import json
 import unittest
 from pathlib import Path
 
-from ci.check_encoded_paths_v3 import CASES, assert_result
+from ci.check_encoded_paths_v3 import CASES, assert_result, parse_audit_log
 
 
 def record(*ids):
@@ -16,6 +16,15 @@ def record(*ids):
 
 
 class EncodedPathsV3Tests(unittest.TestCase):
+    def test_audit_reader_ignores_incomplete_final_line(self):
+        complete = json.dumps(record(9522100)) + "\n"
+        partial = '{"transaction":'
+        self.assertEqual([record(9522100)], parse_audit_log(complete + partial))
+
+    def test_audit_reader_rejects_malformed_terminated_line(self):
+        with self.assertRaises(json.JSONDecodeError):
+            parse_audit_log('{"transaction":}\n')
+
     def test_each_positive_requires_its_own_rule_and_block(self):
         for rule_id, _method, _positive, _benign, _double in CASES:
             with self.subTest(rule_id=rule_id):

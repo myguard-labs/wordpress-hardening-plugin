@@ -89,6 +89,13 @@ def assert_result(rule_id, kind, status, record):
     return matched
 
 
+def parse_audit_log(data):
+    lines = data.splitlines(keepends=True)
+    if lines and not lines[-1].endswith("\n"):
+        lines.pop()
+    return [json.loads(line) for line in lines if line.strip()]
+
+
 def check(_engine, mode, url, server, _private_peer):
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
@@ -101,7 +108,7 @@ def check(_engine, mode, url, server, _private_peer):
         )
         if result.returncode:
             raise AssertionError(f"{server}: audit unavailable: {result.stderr}")
-        return [json.loads(line) for line in result.stdout.splitlines() if line]
+        return parse_audit_log(result.stdout)
 
     def request(method, path):
         req = urllib.request.Request(
