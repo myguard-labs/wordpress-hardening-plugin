@@ -251,7 +251,7 @@ func main() {
 	try("regex-lookahead", `SecRule ARGS "@rx foo(?!bar)" "id:51,phase:2,pass"`)
 	try("regex-backreference", `SecRule ARGS "@rx (\w+) \1" "id:52,phase:2,pass"`)
 	try("regex-possessive", `SecRule ARGS "@rx a++b" "id:53,phase:2,pass"`)
-	try("regex-atomic-group", `SecRule ARGS "@rx (?>fo+)bar" "id:54,phase:2,pass"`)
+	try("regex-atomic-group", `SecRule ARGS "@rx (?>foo*)bar" "id:54,phase:2,pass"`)
 	try("regex-K", `SecRule ARGS "@rx foo\Kbar" "id:55,phase:2,pass"`)
 	try("var-SESSION", `SecRule SESSION:foo "@rx x" "id:6,phase:2,pass"`)
 	try("var-GLOBAL", `SecRule GLOBAL:foo "@rx x" "id:61,phase:2,pass"`)

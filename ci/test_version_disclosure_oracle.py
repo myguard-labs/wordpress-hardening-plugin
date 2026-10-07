@@ -54,6 +54,21 @@ class VersionDisclosureOracleTest(unittest.TestCase):
         self.assertIn("add_header X-Powered-By 'nginx';", control)
         self.assertIn("add_header Link '<https://example.test/>; rel=\"alternate\"';", control)
 
+    def test_pingback_presence_counts_empty_header(self):
+        rules = (ROOT / "plugins/wordpress-hardening-before.conf").read_text()
+        match = re.search(
+            r'SecRule (\S+) "(\S+) ([^\"]+)"\s*\\\s*"id:9522701,',
+            rules,
+        )
+        self.assertIsNotNone(match, "9522701 presence rule is missing")
+        self.assertEqual(
+            ("&RESPONSE_HEADERS:X-Pingback", "@ge", "1"), match.groups()
+        )
+        for values, should_match in (([], False), ([""], True),
+                                     (["https://example.test/xmlrpc.php"], True)):
+            with self.subTest(values=values):
+                self.assertEqual(should_match, len(values) >= int(match[3]))
+
 
 if __name__ == "__main__":
     unittest.main()

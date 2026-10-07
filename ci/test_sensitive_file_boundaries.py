@@ -5,6 +5,8 @@ import unittest
 from pathlib import Path
 from urllib.parse import unquote
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 RULES = (ROOT / 'plugins/wordpress-hardening-before.conf').read_text()
 DATA = (ROOT / 'plugins/wordpress-hardening-files.data').read_text()
@@ -103,6 +105,24 @@ class TestSensitiveFileBoundaries(unittest.TestCase):
         ):
             with self.subTest(path=path):
                 self.assertTrue(self.matches(path), path)
+
+    def test_info_leak_duplicates_do_not_expand_data_match(self):
+        for path in ('/.user.ini', '/wp-content/debug.log'):
+            with self.subTest(path=path):
+                self.assertNotIn(path, self.tokens)
+        for path in ('/article/.user.ini-guide',
+                     '/article/wp-content/debug.log-guide'):
+            with self.subTest(path=path):
+                self.assertFalse(self.matches(path), path)
+        fixture = yaml.safe_load(
+            (ROOT / 'tests/regression/wordpress-hardening-plugin/9522202.yaml').read_text()
+        )
+        cases = {test['test_title']: test['stages'][0] for test in fixture['tests']}
+        for title, path in (('9522202-11', '/.user.ini'),
+                            ('9522202-28', '/wp-content/debug.log/extra')):
+            with self.subTest(title=title):
+                self.assertEqual(path, cases[title]['input']['uri'])
+                self.assertEqual('id "9522100"', cases[title]['output']['log_contains'])
 
     def test_static_fast_path_preserves_sensitive_path_info(self):
         sensitive = RULES.index('id:9522202,')
