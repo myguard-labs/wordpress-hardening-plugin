@@ -21,17 +21,33 @@ EXCEPTIONS = (
 )
 
 
+def request_filename_rules():
+    return tuple(
+        match for match in re.finditer(
+            r'^SecRule REQUEST_FILENAME "(?P<selector>[^\"]+)" \\\n'
+            r'\s+"(?P<actions>(?:[^"\\]|\\\\|\\\n)*)"',
+            RULES,
+            re.MULTILINE,
+        )
+    )
+
+
 class TestSensitiveFileBoundaries(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        rule = RULES.split('id:9522202,', 1)[1].split('id:9522208,', 1)[0]
-        if 'chain"' not in rule:
+        cls.rule_matches = request_filename_rules()
+        cls.sensitive_rule = next(
+            (match for match in cls.rule_matches
+             if re.search(r'\bid:9522202,', match.group('actions'))),
+            None,
+        )
+        if cls.sensitive_rule is None:
+            raise AssertionError('9522202 action list is missing')
+        actions = cls.sensitive_rule.group('actions').replace('\\\n', '')
+        if 'chain' not in {action.strip() for action in actions.split(',')}:
             raise AssertionError('9522202 must chain from the broad data-file match')
-        if re.search(
-            r'SecRule REQUEST_FILENAME "@pmFromFile wordpress-hardening-files\.data"'
-            r'\s*\\\s*"id:9522202,', RULES
-        ) is None:
-            raise AssertionError('9522202 data-file match is missing')
+        rule_end = RULES.index('id:9522208,')
+        rule = RULES[cls.sensitive_rule.start():rule_end]
         match = re.search(r'SecRule REQUEST_FILENAME "!@rx ([^"]+)"', rule)
         if match is None:
             raise AssertionError('9522202 negative exception is missing')
@@ -51,6 +67,14 @@ class TestSensitiveFileBoundaries(unittest.TestCase):
         for token in self.tokens:
             with self.subTest(token=token):
                 self.assertTrue(self.matches(token), token)
+
+    def test_sensitive_file_selector_and_id_share_rule_action_list(self):
+        rule = self.sensitive_rule
+        self.assertEqual(
+            '@pmFromFile wordpress-hardening-files.data',
+            rule.group('selector'),
+        )
+        self.assertIn('id:9522202,', rule.group('actions'))
 
     def test_only_explicit_complete_paths_are_exempt(self):
         for path in EXCEPTIONS:
