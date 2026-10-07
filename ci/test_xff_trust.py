@@ -14,6 +14,37 @@ from ci import check_xff_trust
 
 
 class XffTrustTests(unittest.TestCase):
+    def test_repeated_xff_is_sent_as_distinct_field_lines(self):
+        with mock.patch.object(check_xff_trust.http.client, "HTTPConnection") as factory:
+            factory.return_value.getresponse.return_value.status = 403
+            status = check_xff_trust.repeated_status(
+                "http://198.18.0.2:8080", "/xmlrpc.php", ("bad", "10.0.0.5")
+            )
+        self.assertEqual(403, status)
+        factory.assert_called_once_with("198.18.0.2", 8080, timeout=3)
+        self.assertEqual(
+            [
+                mock.call("X-Forwarded-For", "bad"),
+                mock.call("X-Forwarded-For", "10.0.0.5"),
+            ],
+            [
+                call
+                for call in factory.return_value.putheader.call_args_list
+                if call.args[0] == "X-Forwarded-For"
+            ],
+        )
+        factory.return_value.close.assert_called_once()
+
+    def test_repeated_cases_cover_malformed_and_private_orderings(self):
+        self.assertIn(
+            ("malformed-then-private", ("bad", "10.0.0.5"), (403, 403)),
+            check_xff_trust.REPEATED_HEADERS,
+        )
+        self.assertIn(
+            ("private-then-public", ("10.0.0.5", "8.8.8.8"), (200, 200)),
+            check_xff_trust.REPEATED_HEADERS,
+        )
+
     def test_parser_cases_reuse_corpus_and_preserve_order(self):
         with mock.patch.object(
             check_xff_trust, "address_corpus", wraps=check_xff_trust.address_corpus
