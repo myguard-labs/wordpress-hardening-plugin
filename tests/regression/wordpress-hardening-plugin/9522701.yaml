@@ -73,3 +73,14 @@ tests:
           uri: /9522700-response-oracle-control
         output:
           no_log_contains: 'id "9522703"'
+  - test_title: 9522701-7
+    desc: An empty X-Pingback field value still triggers the presence detector.
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: Mozilla/5.0}
+          port: 80
+          method: GET
+          uri: /9522701-empty-response-oracle
+        output:
+          log_contains: 'id "9522701"'

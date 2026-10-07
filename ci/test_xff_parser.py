@@ -185,6 +185,23 @@ class XffParserTests(unittest.TestCase):
         for address in ("0:0:0:0:0:ffff:192.0.2.1", "::ffff:172.32.0.1"):
             self.assertIsNone(pattern.fullmatch(address))
 
+    def test_ula_classifier_bounds_and_bracket_pairing(self):
+        source = SOURCE.read_text()
+        pattern = parser_pattern(source, 9522063, chained=False)
+        for address in (
+            "fc00::1", "[fc00::1]", "fd12:3456::1", "[fd12:3456::1]",
+            "fc00:1:2:3:4:5:192.0.2.1",
+        ):
+            with self.subTest(valid=address):
+                self.assertEqual(address.strip("[]"), expected_address(address))
+                self.assertIsNotNone(pattern.fullmatch(address), address)
+        for address in (
+            "fc00::1junk", "fd12::1, 8.8.8.8", "[fc00::1", "fd12::1]",
+            "[fc00::1]suffix", "fc00%3a%3a1", "fc00::1 ", "fc00:", "fd12:",
+        ):
+            with self.subTest(malformed=address):
+                self.assertIsNone(pattern.fullmatch(address), address)
+
 
 if __name__ == "__main__":
     unittest.main()

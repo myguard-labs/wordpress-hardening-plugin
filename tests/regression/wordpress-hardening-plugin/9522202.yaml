@@ -141,7 +141,7 @@ tests:
         output:
           log_contains: id "9522202"
   - test_title: 9522202-11
-    desc: sensitive hidden config
+    desc: sensitive hidden config remains blocked by phase-1 rule 9522100
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -150,7 +150,7 @@ tests:
           method: GET
           uri: /.user.ini
         output:
-          log_contains: id "9522202"
+          log_contains: id "9522100"
   - test_title: 9522202-12
     desc: benign blog guide
     stages:
@@ -284,7 +284,7 @@ tests:
         output:
           log_contains: id "9522202"
   - test_title: 9522202-28
-    desc: sensitive debug log PATH_INFO
+    desc: sensitive debug log PATH_INFO remains blocked by phase-1 rule 9522100
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -293,7 +293,7 @@ tests:
           method: GET
           uri: /wp-content/debug.log/extra
         output:
-          log_contains: id "9522202"
+          log_contains: id "9522100"
   - test_title: 9522202-29
     desc: sensitive old config backup
     stages:

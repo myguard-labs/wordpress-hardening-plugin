@@ -26,6 +26,7 @@ class VersionDisclosureOracleTest(unittest.TestCase):
         }
         suite = yaml.safe_load(REGRESSION.read_text())
         cls.enabled = suite["meta"]["enabled"]
+        cls.titles = [case["test_title"] for case in suite["tests"]]
         cls.tests = {
             case["test_title"]: case["stages"][0]
             for case in suite["tests"]
@@ -48,11 +49,41 @@ class VersionDisclosureOracleTest(unittest.TestCase):
                 stage = self.tests[f"9522701-{case_number + 1}"]
                 body = self.locations[stage["input"]["uri"]]
                 self.assertNotIn(f"add_header {header} '{value}';", body)
+                if rule_id == 9522701:
+                    self.assertNotRegex(body, r"\badd_header\s+X-Pingback\b")
                 self.assertEqual(f'id "{rule_id}"', stage["output"]["no_log_contains"])
                 self.assertIn("return 200 'ok';", body)
         control = self.locations["/9522700-response-oracle-control"]
         self.assertIn("add_header X-Powered-By 'nginx';", control)
         self.assertIn("add_header Link '<https://example.test/>; rel=\"alternate\"';", control)
+
+    def test_empty_pingback_header_has_live_positive_case(self):
+        # go-ftw indexes selected cases by position; title order must agree.
+        self.assertEqual(
+            [f"9522701-{number}" for number in range(1, 8)], self.titles
+        )
+        stage = self.tests["9522701-7"]
+        self.assertEqual(
+            "/9522701-empty-response-oracle", stage["input"]["uri"]
+        )
+        body = self.locations[stage["input"]["uri"]]
+        # nginx omits a zero-length add_header value. A single space is sent
+        # on the wire and becomes an empty value after HTTP OWS is trimmed.
+        self.assertEqual(
+            ["' '"], re.findall(r"\badd_header\s+X-Pingback\s+([^;]+);", body)
+        )
+        self.assertIn("return 200 'ok';", body)
+        self.assertEqual('id "9522701"', stage["output"]["log_contains"])
+
+        rules = (ROOT / "plugins/wordpress-hardening-before.conf").read_text()
+        match = re.search(
+            r'SecRule (\S+) "(\S+) ([^\"]+)"\s*\\\s*"id:9522701,',
+            rules,
+        )
+        self.assertIsNotNone(match, "9522701 presence rule is missing")
+        self.assertEqual(
+            ("&RESPONSE_HEADERS:X-Pingback", "@ge", "1"), match.groups()
+        )
 
 
 if __name__ == "__main__":
