@@ -129,6 +129,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mutation", choices=("disable-limiter",))
     args = parser.parse_args()
+    try:
+        subprocess.run(
+            ["perl", "-MSDBM_File", "-e", "1"],
+            check=True,
+            capture_output=True,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError) as error:
+        raise SystemExit("host Perl SDBM_File is required for growth probe") from error
     tags = limiter.xff.workflow_tags()
     with tempfile.TemporaryDirectory(prefix="wph-ratelimit-growth-") as temporary:
         directory = Path(temporary)

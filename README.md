@@ -202,7 +202,8 @@ Include /path/to/plugins/wordpress-hardening-ratelimit.conf
 > **⚠️ Collection growth (DoS):** `initcol:ip=%{client_ip}` creates one
 > SDBM entry per resolved IP under `SecDataDir`. Expiring the
 > `ip.login_attempts` variable after 60 seconds does not remove the
-> collection's SDBM record. A disposable Apache/mod_security2 probe found
+> collection's SDBM record in the tested Apache/mod_security2 setup. A
+> disposable probe found
 > 20 distinct records still present after `SecCollectionTimeout 3` elapsed;
 > a new client raised the count to 21. The plugin does not set this
 > engine-wide directive, and setting it alone does not bound disk growth

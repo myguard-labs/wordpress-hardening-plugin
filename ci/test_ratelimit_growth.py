@@ -1,6 +1,7 @@
 """Unit controls for the disposable Apache SDBM growth probe."""
 
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,6 +11,44 @@ from ci import check_ratelimit_growth as growth
 
 
 class RateLimitGrowthTests(unittest.TestCase):
+    def test_main_checks_host_perl_before_docker_setup(self):
+        with (
+            mock.patch.object(sys, "argv", ["check_ratelimit_growth"]),
+            mock.patch.object(growth.subprocess, "run") as run,
+            mock.patch.object(growth.limiter.xff, "workflow_tags") as tags,
+            mock.patch.object(
+                growth.limiter.xff, "selected_image", return_value="image"
+            ),
+            mock.patch.object(growth.limiter.xff, "docker") as docker,
+        ):
+            tags.side_effect = lambda: self.assertEqual(1, run.call_count)
+            growth.main()
+
+        run.assert_called_once_with(
+            ["perl", "-MSDBM_File", "-e", "1"],
+            check=True,
+            capture_output=True,
+        )
+        docker.assert_called_once()
+
+    def test_main_reports_missing_host_perl_before_docker_setup(self):
+        failures = (
+            FileNotFoundError("perl"),
+            subprocess.CalledProcessError(2, ["perl", "-MSDBM_File", "-e", "1"]),
+        )
+        for failure in failures:
+            with (
+                self.subTest(failure=type(failure).__name__),
+                mock.patch.object(sys, "argv", ["check_ratelimit_growth"]),
+                mock.patch.object(growth.subprocess, "run", side_effect=failure),
+                mock.patch.object(growth.limiter.xff, "workflow_tags") as tags,
+                mock.patch.object(growth.limiter.xff, "docker") as docker,
+                self.assertRaisesRegex(SystemExit, "host Perl SDBM_File is required"),
+            ):
+                growth.main()
+            tags.assert_not_called()
+            docker.assert_not_called()
+
     def test_stage_pins_short_collection_timeout_and_preserves_source(self):
         with tempfile.TemporaryDirectory() as temporary:
             normal = Path(temporary) / "normal"
