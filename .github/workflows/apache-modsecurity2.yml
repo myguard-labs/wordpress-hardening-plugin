@@ -119,6 +119,9 @@ jobs:
       - name: Verify login limiter expires after 60 seconds
         run: python3 -m ci.check_ratelimit_expiry
 
+      - name: Measure persistent collection growth after timeout
+        run: python3 -m ci.check_ratelimit_growth
+
       - name: Dump logs on failure
         if: failure()
         run: |
