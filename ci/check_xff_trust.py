@@ -6,6 +6,7 @@ legacy-XFF override is loaded. All resources are disposable.
 """
 
 import argparse
+import http.client
 import ipaddress
 import json
 import os
@@ -15,6 +16,7 @@ import subprocess
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -303,6 +305,53 @@ def peer_cases(private_peer):
     return CASES
 
 
+# Apache/v2 folds lines into a comma value and uses its first hop. nginx/v3
+# exposes separate values; the duplicate guard rejects that whole collection.
+# Apache expectations below are (XML-RPC status, reputation-probe status).
+REPEATED_HEADERS = [
+    ("public-then-private", ("8.8.8.8", "10.0.0.5"), (403, 200)),
+    ("malformed-then-private", ("bad", "10.0.0.5"), (403, 403)),
+    ("blocked-then-private", ("2001:db8::bad", "10.0.0.5"), (403, 403)),
+    ("private-then-public", ("10.0.0.5", "8.8.8.8"), (200, 200)),
+    ("private-then-private", ("10.0.0.5", "127.0.0.1"), (200, 200)),
+]
+
+
+def repeated_status(url, path, headers):
+    """Send separate XFF field lines without urllib's header coalescing."""
+    target = urllib.parse.urlsplit(url)
+    connection = http.client.HTTPConnection(target.hostname, target.port, timeout=3)
+    try:
+        connection.putrequest("GET", path)
+        connection.putheader("User-Agent", "XFF trust test")
+        for value in headers:
+            connection.putheader("X-Forwarded-For", value)
+        connection.endheaders()
+        response = connection.getresponse()
+        response.read()
+        return response.status
+    finally:
+        connection.close()
+
+
+def check_repeated_http(status, engine, mode):
+    """Check both exemption and reputation paths for repeated field lines."""
+    for case, header, apache_trusted in REPEATED_HEADERS:
+        for path, apache_expected in zip(
+            ("/xmlrpc.php", "/ip-reputation-probe"), apache_trusted
+        ):
+            expected = (
+                apache_expected
+                if engine == "apache" and mode in ("trusted", "legacy")
+                else 403
+            )
+            actual = status(path, header)
+            assert actual == expected, (
+                f"{engine}:{mode}:{case}:{path}: expected {expected}, got {actual}"
+            )
+            print(f"{engine}:{mode}:{case}:{path}: HTTP {actual}", flush=True)
+
+
 def reputation_cases(mode, peer):
     cases = []
     for name, header in [
@@ -443,6 +492,8 @@ def check_http(engine, mode, url, server, private_peer):
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
     def status(path, header=None, address=None):
+        if isinstance(header, tuple):
+            return repeated_status(url, path, header)
         headers = {"User-Agent": "XFF trust test", "Accept": "*/*"}
         if header is not None:
             headers["X-Forwarded-For"] = header
@@ -477,6 +528,7 @@ def check_http(engine, mode, url, server, private_peer):
         )
         print(f"{engine}:{mode}:{case}: HTTP {actual}", flush=True)
     if private_peer:
+        check_repeated_http(status, engine, mode)
         for case in reputation_cases(mode, "unused"):
             actual = status(case["uri"], case["headers"].get("X-Forwarded-For"))
             expected = 403 if case["expect_interruption"] else 200
