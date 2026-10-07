@@ -32,7 +32,22 @@ CASES = (
         "/wp-content/plugins/akismet/readm%65.txt-guide",
         "/wp-content/plugins/akismet/readm%2565.txt",
     ),
+    (
+        9522117,
+        "POST",
+        "/wp-json/sure-tr%69ggers/v1/connection/create-wp-connection",
+        "/wp-json/sure-tr%69ggers/v2/health",
+        "/wp-json/sure-tr%2569ggers/v1/connection/create-wp-connection",
+    ),
+    (
+        9522118,
+        "POST",
+        "/wp-json/br%69cks/v1/render_element",
+        "/wp-json/br%69cks/v2/render_element",
+        "/wp-json/br%2569cks/v1/render_element",
+    ),
     (9522119, "PUT", "/wp-log%69n.php", "/about%2ehtml", "/wp-log%2569n.php"),
+    (9522121, "GET", "/wp-adm%69n/", "/about%2ehtml", "/wp-adm%2569n/"),
 )
 
 
@@ -63,7 +78,10 @@ def assert_result(rule_id, kind, status, record):
     matched = rule_id in ids
     if kind == "positive":
         assert matched, f"{kind} {rule_id}: rule did not fire; IDs {sorted(ids)}"
-        assert status == 403, f"{kind} {rule_id}: expected HTTP 403, got {status}"
+        expected = 200 if rule_id == 9522121 else 403
+        assert status == expected, (
+            f"{kind} {rule_id}: expected HTTP {expected}, got {status}"
+        )
     else:
         assert not matched, (
             f"{kind} {rule_id}: rule fired unexpectedly; IDs {sorted(ids)}"
