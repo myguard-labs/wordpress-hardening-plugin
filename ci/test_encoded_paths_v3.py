@@ -39,7 +39,9 @@ class EncodedPathsV3Tests(unittest.TestCase):
 
     def test_new_cases_match_coraza_fixture_boundaries(self):
         fixture = json.loads(
-            (Path(__file__).with_name("urldecode_coraza.json")).read_text()
+            (Path(__file__).with_name("urldecode_coraza.json")).read_text(
+                encoding="utf-8"
+            )
         )
         by_name = {item["name"]: item for item in fixture}
         for rule_id, method, positive, benign, double in CASES:
