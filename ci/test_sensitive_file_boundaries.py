@@ -21,33 +21,76 @@ EXCEPTIONS = (
 )
 
 
-def request_filename_rules():
+def request_filename_rules(rules=RULES):
     return tuple(
         match for match in re.finditer(
             r'^SecRule REQUEST_FILENAME "(?P<selector>[^\"]+)" \\\n'
             r'\s+"(?P<actions>(?:[^"\\]|\\\\|\\\n)*)"',
-            RULES,
+            rules,
             re.MULTILINE,
         )
     )
 
 
+def action_tokens(actions):
+    """Split SecRule actions at commas outside single-quoted values."""
+    actions = actions.replace('\\\n', '')
+    tokens = []
+    start = 0
+    quoted = False
+    escaped = False
+    for index, char in enumerate(actions):
+        if escaped:
+            escaped = False
+        elif char == '\\':
+            escaped = True
+        elif char == "'":
+            quoted = not quoted
+        elif char == ',' and not quoted:
+            tokens.append(actions[start:index].strip())
+            start = index + 1
+    if quoted:
+        raise ValueError('unterminated quoted SecRule action')
+    tokens.append(actions[start:].strip())
+    return tuple(tokens)
+
+
+def sensitive_rule_match(rules):
+    return next(
+        (match for match in request_filename_rules(rules)
+         if 'id:9522202' in action_tokens(match.group('actions'))),
+        None,
+    )
+
+
+def sensitive_rule_chain(rules, match):
+    directives = tuple(re.finditer(r'^[ \t]*Sec(?:Rule|Action|Marker)\b',
+                                   rules[match.end():], re.MULTILINE))
+    actions = match.group('actions')
+    for index, directive in enumerate(directives):
+        end = match.end() + directive.start()
+        if ('chain' not in action_tokens(actions)
+                or not directive.group().lstrip().startswith('SecRule')):
+            return rules[match.start():end]
+        next_start = (match.end() + directives[index + 1].start()
+                      if index + 1 < len(directives) else len(rules))
+        quoted = re.findall(r'"((?:[^"\\]|\\[\s\S])*)"',
+                            rules[end:next_start])
+        if not quoted:
+            return rules[match.start():end]
+        actions = quoted[-1]
+    return rules[match.start():]
+
+
 class TestSensitiveFileBoundaries(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.rule_matches = request_filename_rules()
-        cls.sensitive_rule = next(
-            (match for match in cls.rule_matches
-             if re.search(r'\bid:9522202,', match.group('actions'))),
-            None,
-        )
+        cls.sensitive_rule = sensitive_rule_match(RULES)
         if cls.sensitive_rule is None:
             raise AssertionError('9522202 action list is missing')
-        actions = cls.sensitive_rule.group('actions').replace('\\\n', '')
-        if 'chain' not in {action.strip() for action in actions.split(',')}:
+        if 'chain' not in action_tokens(cls.sensitive_rule.group('actions')):
             raise AssertionError('9522202 must chain from the broad data-file match')
-        rule_end = RULES.index('id:9522208,')
-        rule = RULES[cls.sensitive_rule.start():rule_end]
+        rule = sensitive_rule_chain(RULES, cls.sensitive_rule)
         match = re.search(r'SecRule REQUEST_FILENAME "!@rx ([^"]+)"', rule)
         if match is None:
             raise AssertionError('9522202 negative exception is missing')
@@ -74,7 +117,62 @@ class TestSensitiveFileBoundaries(unittest.TestCase):
             '@pmFromFile wordpress-hardening-files.data',
             rule.group('selector'),
         )
-        self.assertIn('id:9522202,', rule.group('actions'))
+
+    def test_rule_action_id_ignores_quoted_text_and_action_order(self):
+        rules = (
+            'SecRule REQUEST_FILENAME "@rx decoy" \\\n'
+            '  "msg:\'quoted,id:9522202,decoy\',id:9522200,chain"\n'
+            'SecRule REQUEST_FILENAME "@pmFromFile wordpress-hardening-files.data" \\\n'
+            '  "msg:\'quoted,id:9522202,decoy\',chain,id:9522202,phase:2"\n'
+        )
+        match = sensitive_rule_match(rules)
+        self.assertIsNotNone(match)
+        self.assertEqual('@pmFromFile wordpress-hardening-files.data',
+                         match.group('selector'))
+
+    def test_sensitive_chain_stops_at_next_top_level_rule(self):
+        rules = (
+            'SecRule REQUEST_FILENAME "@pmFromFile wordpress-hardening-files.data" \\\n'
+            '  "id:9522202,chain"\n'
+            '  SecRule REQUEST_FILENAME "!@rx ^/allowed$" \\\n'
+            '    "t:none"\n'
+            'SecRule TX:other "@eq 1" \\\n'
+            '  "id:9522299,msg:\'SecRule REQUEST_FILENAME !@rx ^/wrong$\'"\n'
+        )
+        match = sensitive_rule_match(rules)
+        chain = sensitive_rule_chain(rules, match)
+        self.assertIn('!@rx ^/allowed$', chain)
+        self.assertNotIn('!@rx ^/wrong$', chain)
+
+    def test_unindented_continuation_belongs_to_chain(self):
+        rules = (
+            'SecRule REQUEST_FILENAME "@pmFromFile wordpress-hardening-files.data" \\\n'
+            '  "id:9522202,chain"\n'
+            'SecRule REQUEST_FILENAME "!@rx ^/allowed$" \\\n'
+            '  "t:none"\n'
+            'SecRule TX:other "@eq 1" \\\n'
+            '  "id:9522299,msg:\'SecRule REQUEST_FILENAME !@rx ^/wrong$\'"\n'
+        )
+        chain = sensitive_rule_chain(rules, sensitive_rule_match(rules))
+        self.assertIn('!@rx ^/allowed$', chain)
+        self.assertNotIn('!@rx ^/wrong$', chain)
+
+    def test_quoted_chain_text_does_not_extend_chain(self):
+        rules = (
+            'SecRule REQUEST_FILENAME "@pmFromFile wordpress-hardening-files.data" \\\n'
+            '  "id:9522202,chain"\n'
+            'SecRule REQUEST_FILENAME "!@rx ^/allowed$" \\\n'
+            '  "msg:\'quoted,chain,decoy\',t:none"\n'
+            'SecRule REQUEST_FILENAME "!@rx ^/wrong$" \\\n'
+            '  "t:none"\n'
+        )
+        chain = sensitive_rule_chain(rules, sensitive_rule_match(rules))
+        self.assertIn('!@rx ^/allowed$', chain)
+        self.assertNotIn('!@rx ^/wrong$', chain)
+
+    def test_malformed_quoted_action_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, 'unterminated quoted'):
+            action_tokens("msg:'unterminated,id:9522202,chain")
 
     def test_only_explicit_complete_paths_are_exempt(self):
         for path in EXCEPTIONS:
