@@ -1,9 +1,12 @@
 ---
-# Coraza v3 load gate. Coraza is the strictest of the three target engines:
+# Coraza v3 load and targeted runtime gate.
+# Coraza is the strictest of the three target engines:
 # it rejects the whole ruleset at config load where ModSecurity would warn
 # (PCRE-only regex constructs, persistent collections, unsupported actions).
 # This gate loads every glob-loaded plugin file into coraza.NewWAF() and
-# fails on any load error, keeping the plugin portable.
+# fails on any load error, keeping the plugin portable. Runtime fixtures also
+# check path normalization, method matching, URL decoding, optional IP
+# behavior and XFF trust; this lane does not run the full go-ftw suite.
 #
 # wordpress-hardening-ratelimit.conf is deliberately NOT gated: it is the
 # opt-in Apache/mod_security2-only file (persistent IP collections are
@@ -26,11 +29,12 @@ jobs:
     runs-on: [self-hosted, builder02, lxc]
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+      - uses: "actions/checkout@\
+          34e114876b0b11c390a56381ad16ebd13914f8d5"  # v4.3.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
         with:
           go-version: stable
           cache-dependency-path: tests/coraza/go.sum
@@ -45,8 +49,42 @@ jobs:
           "$RUNNER_TEMP/coraza-probe" \
             wordpress-hardening-config.conf \
             ../tests/integration/ci-plugin/zzz-ci-config.conf \
+            wordpress-hardening-ip.conf \
             wordpress-hardening-before.conf \
             wordpress-hardening-after.conf
+
+      - name: Verify Coraza runtime matches
+        working-directory: tests/coraza
+        run: |
+          for fixture in ../../ci/static_pathinfo_coraza.json \
+            ../../ci/method_case_coraza.json \
+            ../../ci/urldecode_coraza.json \
+            ../../ci/dangerous_admin_overlap_coraza.json; do
+            "$RUNNER_TEMP/coraza-probe" -tx "$fixture" \
+              ../../plugins/wordpress-hardening-config.conf \
+              ../../tests/integration/ci-plugin/zzz-ci-config.conf \
+              ../../plugins/wordpress-hardening-ip.conf \
+              ../../plugins/wordpress-hardening-before.conf \
+              ../../plugins/wordpress-hardening-after.conf
+          done
+
+          # The enabled CI fixture must not hide the shipped readme default.
+          "$RUNNER_TEMP/coraza-probe" \
+            -tx ../../ci/urldecode_default_coraza.json \
+            ../../plugins/wordpress-hardening-config.conf \
+            ../../plugins/wordpress-hardening-ip.conf \
+            ../../plugins/wordpress-hardening-before.conf \
+            ../../plugins/wordpress-hardening-after.conf
+
+      - name: Verify optional IP selection and plugin disable behavior
+        run: |
+          python3 -m ci.check_optional_ip coraza \
+            --probe "$RUNNER_TEMP/coraza-probe"
+
+      - name: Verify default XFF trust and configured proxies
+        run: |
+          python3 ci/check_xff_trust.py coraza \
+            --probe "$RUNNER_TEMP/coraza-probe"
 
       - name: Guard — ratelimit file must stay outside the loader globs
         run: |

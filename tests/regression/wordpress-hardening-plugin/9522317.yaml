@@ -6,7 +6,7 @@ meta:
   name: 9522317.yaml
 tests:
   - test_title: 9522317-1
-    desc: Test if wp-admin/install.php is blocked (block_dangerous_admin must be ON)
+    desc: Test if wp-admin/install.php is blocked by phase-1 info-leak rule
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -21,9 +21,9 @@ tests:
           data: |
             text
         output:
-          log_contains: id "9522317"
+          log_contains: id "9522100"
   - test_title: 9522317-2
-    desc: Test if wp-admin/setup-config.php is blocked
+    desc: Test if wp-admin/setup-config.php is blocked by phase-1 info-leak rule
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -38,7 +38,7 @@ tests:
           data: |
             text
         output:
-          log_contains: id "9522317"
+          log_contains: id "9522100"
   - test_title: 9522317-3
     desc: Test if wp-admin/upgrade.php is blocked
     stages:

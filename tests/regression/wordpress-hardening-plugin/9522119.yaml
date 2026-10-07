@@ -102,3 +102,47 @@ tests:
           uri: /wp-login.php
         output:
           no_log_contains: id "9522119"
+  - test_title: 9522119-90
+    desc: raw-path-control for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: PUT
+          uri: /wp-login.php
+        output:
+          log_contains: id "9522119"
+  - test_title: 9522119-91
+    desc: single-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: PUT
+          uri: /wp-log%69n.php
+        output:
+          log_contains: id "9522119"
+  - test_title: 9522119-92
+    desc: benign-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: TRACE
+          uri: /about%2ehtml
+        output:
+          no_log_contains: id "9522119"
+  - test_title: 9522119-93
+    desc: double-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: TRACE
+          uri: /wp-log%2569n.php
+        output:
+          no_log_contains: id "9522119"

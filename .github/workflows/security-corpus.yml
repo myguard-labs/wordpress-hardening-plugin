@@ -35,8 +35,9 @@ jobs:
   security-corpus:
     name: "Corpus — ModSecurity v2"
     runs-on: [self-hosted, builder02, docker]
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
         with:
           persist-credentials: false
 
@@ -52,6 +53,10 @@ jobs:
           mkdir -p tests/integration/.plugins-staged
           cp plugins/* tests/integration/ci-plugin/* \
              tests/integration/.plugins-staged/
+          # Explicit IP opt-in after all config files, before the main rules.
+          printf 'Include %s/wordpress-hardening-ip.conf\n' \
+            /etc/modsecurity.d/owasp-crs/plugins \
+            > tests/integration/.plugins-staged/aaa-ci-ip-before.conf
           # Load the opt-in rate-limit rules on this engine too (real name is
           # outside the CRS loader globs because it is Coraza-fatal).
           mv tests/integration/.plugins-staged/wordpress-hardening-ratelimit.conf \
@@ -105,6 +110,11 @@ jobs:
 
       - name: Run WAF security corpus
         run: |
+          python3 -m venv "$RUNNER_TEMP/security-corpus-venv"
+          "$RUNNER_TEMP/security-corpus-venv/bin/python" -m pip install \
+            --disable-pip-version-check PyYAML==6.0.2
+          "$RUNNER_TEMP/security-corpus-venv/bin/python" \
+            ci/check_security_corpus.py tests/security
           ./ftw check -d tests/security --config tests/integration/.ftw.corpus.yml
           ./ftw run   -d tests/security --config tests/integration/.ftw.corpus.yml \
             --show-failures-only

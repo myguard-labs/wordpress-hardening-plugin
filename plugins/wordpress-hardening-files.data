@@ -26,6 +26,3 @@
 /.wp-cli/
 /wp-cli.yml
 /wp-cli.local.yml
-# PHP per-directory config and WP debug log (defence in depth — also caught by .ini/.log regex)
-/.user.ini
-/wp-content/debug.log

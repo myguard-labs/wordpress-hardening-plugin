@@ -265,3 +265,67 @@ tests:
             {}
         output:
           log_contains: id "9522117"
+  - test_title: 9522117-90
+    desc: raw-path-control for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/sure-triggers/v1/connection/create-wp-connection
+          data: |
+            {}
+        output:
+          log_contains: id "9522117"
+  - test_title: 9522117-91
+    desc: single-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/sure-tr%69ggers/v1/connection/create-wp-connection
+          data: |
+            {}
+        output:
+          log_contains: id "9522117"
+  - test_title: 9522117-92
+    desc: benign-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/sure-tr%69ggers/v2/health
+          data: |
+            {}
+        output:
+          no_log_contains: id "9522117"
+  - test_title: 9522117-93
+    desc: double-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/sure-tr%2569ggers/v1/connection/create-wp-connection
+          data: |
+            {}
+        output:
+          no_log_contains: id "9522117"
+  - test_title: 9522117-94
+    desc: Negative - a POST body rest_route field cannot select the REST route
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS, Content-Type: application/x-www-form-urlencoded}
+          port: 80
+          method: POST
+          uri: /contact
+          data: rest_route=/sure-triggers/v1/x
+        output:
+          no_log_contains: id "9522117"

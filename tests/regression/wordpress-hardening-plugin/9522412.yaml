@@ -7,25 +7,21 @@ meta:
 tests:
   - test_title: 9522412-1
     desc: >
-      Brute-force lockout: repeated POSTs to /wp-login.php from the same
-      non-whitelisted IP increment ip.login_attempts (rule 9522411). Once the
-      counter reaches the default threshold (5), rule 9522412 must fire.
-      Stages share collection state, so the early stages build the counter and
-      the final stage trips the block. Only the LAST stage asserts the block.
+      A GET must not count. Mixed-case POSTs to /wp-login.php from the same
+      non-whitelisted IP must tick silent rule 9522411; the fifth POST must
+      reach the default threshold and log rule 9522412. Stages share state.
     stages:
       - input:
           dest_addr: 127.0.0.1
           headers:
             Host: localhost
             User-Agent: Mozilla/5.0
-            Content-Type: application/x-www-form-urlencoded
             X-Forwarded-For: 203.0.113.77
           port: 80
-          method: POST
+          method: GET
           uri: /wp-login.php
-          data: log=admin&pwd=wrong1
         output:
-          no_log_contains: id "9522412"
+          no_log_contains: id "9522411"
       - input:
           dest_addr: 127.0.0.1
           headers:
@@ -34,7 +30,20 @@ tests:
             Content-Type: application/x-www-form-urlencoded
             X-Forwarded-For: 203.0.113.77
           port: 80
-          method: POST
+          method: post
+          uri: /wp-login.php
+          data: log=admin&pwd=wrong1
+        output:
+          no_log_contains: id "9522411"
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: Mozilla/5.0
+            Content-Type: application/x-www-form-urlencoded
+            X-Forwarded-For: 203.0.113.77
+          port: 80
+          method: Post
           uri: /wp-login.php
           data: log=admin&pwd=wrong2
         output:
@@ -47,7 +56,7 @@ tests:
             Content-Type: application/x-www-form-urlencoded
             X-Forwarded-For: 203.0.113.77
           port: 80
-          method: POST
+          method: pOsT
           uri: /wp-login.php
           data: log=admin&pwd=wrong3
         output:
@@ -73,7 +82,7 @@ tests:
             Content-Type: application/x-www-form-urlencoded
             X-Forwarded-For: 203.0.113.77
           port: 80
-          method: POST
+          method: post
           uri: /wp-login.php
           data: log=admin&pwd=wrong5
         output:

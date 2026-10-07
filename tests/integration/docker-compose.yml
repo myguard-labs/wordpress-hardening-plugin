@@ -1,3 +1,4 @@
+---
 # Integration test stack — official OWASP CRS images.
 #
 #   backend – tiny nginx origin, returns 200 on every path (go-ftw target).
@@ -7,7 +8,7 @@
 # Both WAF images are reverse proxies in front of `backend`. They load a
 # STAGED plugins dir (.plugins-staged/) that holds the real plugin tree
 # (plugins/) PLUS the CI-only extras (ci-plugin/), so the include chain is:
-#   *-config.conf -> *-before.conf -> CRS rules -> *-after.conf
+#   config -> explicit IP include -> main before -> rate-limit -> CRS -> after
 # — same order production uses, with PL2 + opt-in features turned on by the CI
 # config (see ci-plugin/zzz-ci-config.conf).
 #
@@ -16,7 +17,9 @@
 # Build it before `up` (the workflows do this; locally run the same):
 #   rm -rf tests/integration/.plugins-staged
 #   mkdir -p tests/integration/.plugins-staged
-#   cp plugins/* tests/integration/ci-plugin/* tests/integration/.plugins-staged/
+#   cp plugins/* tests/integration/ci-plugin/* \
+#     tests/integration/.plugins-staged/
+#   Stage the optional IP and rate-limit includes as shown in README.md.
 #   docker compose -f tests/integration/docker-compose.yml up -d
 #
 # Audit logs land on the host under tests/logs/<backend>/audit.log for go-ftw.
@@ -35,7 +38,7 @@ x-modsec-env: &modsec-env
   MODSEC_AUDIT_LOG: "/var/log/modsec/audit.log"
   MODSEC_AUDIT_LOG_PARTS: "ABIJDEFHZ"
   MODSEC_REQ_BODY_ACCESS: "On"
-  MODSEC_RESP_BODY_ACCESS: "Off"
+  MODSEC_RESP_BODY_ACCESS: "On"
   # Lower thresholds so scoring rules surface in DetectionOnly logs. Harmless
   # in DetectionOnly mode.
   ANOMALY_INBOUND: "5"

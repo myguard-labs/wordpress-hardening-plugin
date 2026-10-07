@@ -31,3 +31,55 @@ tests:
             {}
         output:
           log_contains: id "9522118"
+  - test_title: 9522118-90
+    desc: raw-path-control for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/bricks/v1/render_element
+          data: |
+            {}
+        output:
+          log_contains: id "9522118"
+  - test_title: 9522118-91
+    desc: single-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/br%69cks/v1/render_element
+          data: |
+            {}
+        output:
+          log_contains: id "9522118"
+  - test_title: 9522118-92
+    desc: benign-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/br%69cks/v2/render_element
+          data: |
+            {}
+        output:
+          no_log_contains: id "9522118"
+  - test_title: 9522118-93
+    desc: double-encoded-path for raw URI single-decode boundary
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers: {Host: localhost, User-Agent: OWASP CRS}
+          port: 80
+          method: POST
+          uri: /wp-json/br%2569cks/v1/render_element
+          data: |
+            {}
+        output:
+          no_log_contains: id "9522118"

@@ -5,8 +5,22 @@ meta:
   enabled: true
   name: 9522111.yaml
 tests:
-  - test_title: 95222111
-    desc: Test if wp-cron.php is not blocked (default)
+  - test_title: 9522111-1
+    desc: Public client is blocked from wp-cron.php
+    stages:
+      - input:
+          dest_addr: 127.0.0.1
+          headers:
+            Host: localhost
+            User-Agent: OWASP CRS
+            X-Forwarded-For: 1.2.3.4
+          port: 80
+          method: GET
+          uri: /wp-cron.php
+        output:
+          log_contains: id "9522111"
+  - test_title: 9522111-2
+    desc: Private client can still access wp-cron.php
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -20,4 +34,4 @@ tests:
           data: |
             text
         output:
-          no_log_contains: id "95222111"
+          no_log_contains: id "9522111"

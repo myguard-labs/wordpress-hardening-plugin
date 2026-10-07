@@ -23,27 +23,69 @@ The official image's include chain is:
 *-config.conf -> *-before.conf -> CRS rules -> *-after.conf
 ```
 
-The compose file mounts:
+Compose mounts `tests/integration/.plugins-staged/` into both WAF services at
+`/etc/modsecurity.d/owasp-crs/plugins/`. Stage copies from `plugins/` and the
+CI-only `ci-plugin/zzz-ci-config.conf` before startup. That extra config enables
+the opt-in features (GeoIP login control, IP reputation, scanner/REST/wp-cron
+blocking, plugin readme blocking, strict integer params) that ship disabled,
+and bumps detection paranoia to 2. A CI-only before-file explicitly includes
+`wordpress-hardening-ip.conf` before the main rules; the rate-limit include runs
+after them. Base-only selection tests leave the IP file present but unincluded.
+Restage after editing either source tree,
+then restart the WAF services to load the new rules.
 
-- `plugins/` (the real plugin tree: config + before/after + `.data` files) into
-  `/etc/modsecurity.d/owasp-crs/plugins/`;
-- `ci-plugin/zzz-ci-config.conf` — CI-only: enables the opt-in features (GeoIP
-  login control, IP reputation, scanner/REST/wp-cron blocking, strict integer
-  params) that ship disabled, and bumps detection paranoia to 2;
-- `ci-plugin/zzz-ci-marker-before.conf` — CI-only: the go-ftw `X-CRS-Test`
-  audit-log marker (id 999999).
+The shipped `block_plugin_readme` default remains `0`; the shared CI fixture
+explicitly enables it for rule 9522115 tests. `ci/test_info_leak_paths.py` and
+the Coraza default fixture load the shipped rules without that override and
+assert the disabled behavior. The unit suite also checks that explicit opt-in
+still enables the rule.
+
+Rule 9522100 tests cover exact filenames and slash-delimited PATH_INFO for
+installers and named static files, filename near-misses, and the existing
+raw-path single-decode behavior. Static-file suffixes cover optional origin
+configurations that accept PATH_INFO; no default static-file exposure is assumed.
+The tests assert the specific rule ID: other plugin rules may independently
+match a filename near-miss. All engine cases use inert requests and a stub
+origin; they do not run a WordPress installer.
+
+go-ftw's `X-CRS-Test` markers are recorded by audit part B directly. A
+separate marker rule duplicates them in part H and can make go-ftw capture a
+partially written marker line, breaking exact start/end matching.
 
 Engine settings (`SecRuleEngine DetectionOnly`, serial native audit log, body
 access) come from the image's `MODSEC_*` environment variables, set in the
 compose file. DetectionOnly so go-ftw can drive every endpoint and assert on
 the audit log without traffic being 403'd.
 
+The Apache workflow also runs `python3 -m ci.check_block_mode` in a separate
+disposable container with `SecRuleEngine On`, PL2, and the production inbound
+threshold of 5. It enables the shipped plugin readme rule for one request,
+requires that rule's PL2 score marker and CRS threshold rule 949110 in the
+attack transaction, checks HTTP 403, and checks that the homepage stays 200.
+The shared DetectionOnly regression stack and XFF On-mode probes are unchanged.
+
 ## Run locally
+
+`python3 -m ci.check_smuggle_diff` runs one inert Content-Length plus
+Transfer-Encoding request and a valid POST through the pinned Apache/v2 and
+nginx/v3 images. It uses separate disposable recording origins and asserts the
+response status, origin-observed headers and body, and audit presence. Apache
+forwards the ambiguous request with `Content-Length: 0`; nginx rejects it with
+HTTP 400 before it reaches its origin. Both forward the valid four-byte POST.
+The Apache workflow runs this focused comparison on every change.
 
 From the repo root:
 
 ```bash
 mkdir -p tests/logs/apache tests/logs/nginx && chmod -R 777 tests/logs
+rm -rf tests/integration/.plugins-staged
+mkdir -p tests/integration/.plugins-staged
+cp plugins/* tests/integration/ci-plugin/* tests/integration/.plugins-staged/
+printf '%s\n' \
+  'Include /etc/modsecurity.d/owasp-crs/plugins/wordpress-hardening-ip.conf' \
+  > tests/integration/.plugins-staged/aaa-ci-ip-before.conf
+mv tests/integration/.plugins-staged/wordpress-hardening-ratelimit.conf \
+  tests/integration/.plugins-staged/wordpress-hardening-ratelimit-before.conf
 
 CRS_TAG=4.26.0-apache-202605200705 \
 CRS_TAG_NGINX=4.26.0-nginx-202605200705 \
@@ -80,6 +122,16 @@ differ in determinism:
 > behaviour is gated on Apache and v3 loadability is gated here — both
 > deterministic, both first-run.
 
+## Optional IP selection
+
+`python3 -m ci.check_optional_ip apache` and the equivalent `nginx` command
+start disposable stacks with base-only, unset/default-on, explicitly enabled,
+and disabled configurations. They assert state absence, private exemptions,
+reputation, and ordinary endpoint protection. Apache also verifies that the
+login limiter shares identity across client ports and separates different clients.
+The separate `check_xff_trust.py` lane explicitly includes the IP file and retains
+the full parser, malformed-header, trust, and reputation corpus on both engines.
+
 ## Security corpus
 
 `.github/workflows/security-corpus.yml` runs an adversarial corpus
@@ -89,8 +141,9 @@ differ in determinism:
   / encoding / header casing that **must still be blocked** (guards against
   bypassable rules; includes the regression for the `t:lowercase` GeoIP fix).
 - **`false-positives.yaml`** — legitimate WordPress traffic (homepage,
-  admin-ajax, wp-cron, REST sub-paths, assets, whitelisted login) that **must
-  NOT** trip any `9522xxx` rule (guards against over-blocking).
+  admin-ajax, wp-cron, REST sub-paths, assets, whitelisted login) that must
+  not trip any blocking `9522xxx` rule. Six sensitive-path cases require the
+  passive BREACH audit marker `9522121` and reject every other `9522xxx` ID.
 
 Apache only, for the same reason the nginx job is parse/load only: the corpus
 needs a deterministic pass/fail and libmodsecurity3 v3 cannot provide one. The
@@ -107,7 +160,7 @@ caught here regardless of engine.
 - `docker-compose.yml` — the stack: official CRS images + stub backend, plugin
   mounts, `MODSEC_*` env.
 - `ci-plugin/` — CI-only plugin files mounted into the CRS plugins dir
-  (feature gates + PL bump, go-ftw marker). **Never shipped to production.**
+  (feature gates + PL bump). **Never shipped to production.**
 - `backend/nginx.conf` — stub origin returning 200 on every path.
 - `.ftw.yml` — committed go-ftw config (Apache @ :8001 + pre-existing ignores).
   The nginx/corpus workflows generate `.ftw.nginx.yml` / `.ftw.corpus.yml` from

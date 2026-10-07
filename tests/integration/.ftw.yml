@@ -8,20 +8,4 @@ testoverride:
     dest_addr: "127.0.0.1"
     port: 8001
     override_empty_host_header: true
-  # Pre-existing functional gaps on Apache + mod_security2 (tracked for a
-  # follow-up audit round). These are real rule/payload mismatches, not
-  # environment artefacts — unlike the GeoIP tests, which were fixed by giving
-  # them a public X-Forwarded-For so the RFC-1918 client exemption no longer
-  # masks the block in the docker-bridge CI network.
-  ignore:
-    "9522120-1": "revslider payload encoding — pre-existing"
-    "9522205-2": "investigate — pre-existing"
-    "9522307-1": "Apache normalises raw ../ before ModSec; needs encoded payload"
-    "9522307-2": "Apache normalises raw ../ before ModSec; needs encoded payload"
-    "9522307-3": "Apache normalises raw ../ before ModSec; needs encoded payload"
-    "9522307-5": "percent-encoded traversal handling"
-    "9522307-6": "percent-encoded traversal handling"
-    "9522309-1": "%00 in URI vs Apache/CRS handling"
-    "9522317-1": "overlap with 9522100 phase-1 hard-block"
-    "9522317-2": "overlap with 9522100 phase-1 hard-block"
-    "9522801-2": "re-verify admin/non-permalink negative cases"
+  ignore: {}

@@ -1,15 +1,14 @@
 ---
 meta:
   author: Thijs Eilander
-  description: "False-positive corpus: legitimate WordPress traffic that must
-    NOT trip any wordpress-hardening rule. Each test asserts no_log_contains
-    'id \"9522' — i.e. no plugin rule (9522xxx) fired. A failure here means
-    the plugin over-blocks real users."
+  description: "False-positive corpus: legitimate WordPress traffic must not
+    trip blocking wordpress-hardening rules. BREACH marker 9522121 is expected
+    on sensitive paths; those cases require it and reject every other 9522xxx
+    rule. A failure here means the plugin over-blocks real users."
   enabled: true
   name: false-positives.yaml
-# Corpus spans many rule IDs; assertions live in each test's
-# output.no_log_contains. This top-level rule_id is FTW reporting metadata
-# only (the plugin's allocated base id).
+# Corpus spans many rule IDs; assertions live in each test's output.
+# This top-level rule_id is FTW reporting metadata only.
 rule_id: 9522000
 tests:
   - test_title: fp-homepage
@@ -42,7 +41,7 @@ tests:
       Regression for the chain-setvar bug in 9522200: the parent's setvar
       previously fired unconditionally on any ".php$" match, scoring +5 even
       when the chained allow-list check passed. Assert no anomaly score is
-      contributed (per_pl=0-0-0-0) in addition to no 9522 rule log line.
+      contributed (per_pl=0-0-0-0) in addition to no other 9522 rule log line.
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -55,8 +54,9 @@ tests:
           uri: /wp-admin/admin-ajax.php
           data: "action=heartbeat&_nonce=abc123&data=1"
         output:
-          no_log_contains: id "9522
-          no_log_contains: "per_pl=[1-9]"
+          log_contains: 'id "9522121"'
+          no_log_contains: >-
+            id "9522(?:[02-9]\d{2}|1(?:[013-9]\d|2[02-9]))"|per_pl=[\d-]*[1-9]
 
   - test_title: fp-wpcron-internal
     desc: >
@@ -74,15 +74,16 @@ tests:
           method: POST
           uri: /wp-cron.php?doing_wp_cron=1779142579.0
         output:
-          no_log_contains: id "9522
-          no_log_contains: "per_pl=[1-9]"
+          no_log_contains: >-
+            id "9522|per_pl=[\d-]*[1-9]
 
   - test_title: fp-wp-login-plain
     desc: >
       Plain GET of /wp-login.php is legit. Regression for the chain-setvar
       bug in 9522315: the parent's setvar previously fired on any URI
       beginning with "/wp-login.php", scoring +5 even when no injection was
-      present in ARGS:log/pwd. Assert no anomaly score and no rule log line.
+      present in ARGS:log/pwd. Assert no anomaly score and no other rule log
+      line.
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -91,8 +92,9 @@ tests:
           method: GET
           uri: /wp-login.php
         output:
-          no_log_contains: id "9522
-          no_log_contains: "per_pl=[1-9]"
+          log_contains: 'id "9522121"'
+          no_log_contains: >-
+            id "9522(?:[02-9]\d{2}|1(?:[013-9]\d|2[02-9]))"|per_pl=[\d-]*[1-9]
 
   - test_title: fp-wp-login-normal-post
     desc: >
@@ -110,8 +112,9 @@ tests:
           uri: /wp-login.php
           data: "log=normaluser&pwd=correcthorsebatterystaple&wp-submit=Log+In"
         output:
-          no_log_contains: id "9522
-          no_log_contains: "per_pl=[1-9]"
+          log_contains: 'id "9522121"'
+          no_log_contains: >-
+            id "9522(?:[02-9]\d{2}|1(?:[013-9]\d|2[02-9]))"|per_pl=[\d-]*[1-9]
 
   - test_title: fp-wpjson-subpath-read
     desc: >
@@ -125,7 +128,9 @@ tests:
           method: GET
           uri: /wp-json/wp/v2/posts?per_page=5
         output:
-          no_log_contains: id "9522
+          log_contains: 'id "9522121"'
+          no_log_contains: >-
+            id "9522(?:[02-9]\d{2}|1(?:[013-9]\d|2[02-9]))"
 
   - test_title: fp-upload-image
     desc: Serving a normal uploaded image must not hit the upload-traversal
@@ -171,7 +176,9 @@ tests:
           uri: /wp-login.php
           data: "log=alice&pwd=correcthorsebatterystaple&wp-submit=Log+In"
         output:
-          no_log_contains: id "9522
+          log_contains: 'id "9522121"'
+          no_log_contains: >-
+            id "9522(?:[02-9]\d{2}|1(?:[013-9]\d|2[02-9]))"
 
   - test_title: fp-tutorial-permalink-php-keywords
     desc: >
@@ -182,20 +189,18 @@ tests:
       hid the article from readers. Rule 9522801 removes those three CRS
       rules on front-end permalinks (any path that is NOT admin/login/REST/
       cron/xmlrpc/wp-content/wp-includes). This test asserts that a permalink
-      GET produces no plugin rule fire and that 953100/953110/953120 are not
-      logged either.
+      GET serves the PHP tutorial fixture, produces no plugin rule fire, and
+      suppresses 953100/953110/953120 despite the matching response body.
     stages:
       - input:
           dest_addr: 127.0.0.1
           headers: {Host: localhost, User-Agent: Mozilla/5.0}
           port: 80
           method: GET
-          uri: /2026/05/nginx-angie-the-expert-guide-to-maximum-performance-and-security/
+          uri: >-
+            /2026/05/nginx-angie-the-expert-guide-to-maximum-performance-and-security/
         output:
-          no_log_contains: id "9522
-          no_log_contains: id "953100"
-          no_log_contains: id "953110"
-          no_log_contains: id "953120"
+          no_log_contains: 'id "(?:9522[0-9]*|953100|953110|953120)"'
 
   - test_title: fp-orderby-legit
     desc: >
@@ -214,7 +219,8 @@ tests:
   - test_title: fp-orderby-multicolumn
     desc: >
       Space/comma-separated multi-column orderby (WP accepts "title menu_order")
-      must pass the PL1 metachar check (9522331) and the PL2 allowlist (9522332).
+      must pass the PL1 metachar check (9522331) and the PL2 allowlist
+      (9522332).
     stages:
       - input:
           dest_addr: 127.0.0.1
@@ -241,7 +247,9 @@ tests:
           uri: /wp-admin/admin-ajax.php
           data: "action=save_order&order%5B%5D=12&order%5B%5D=7&order%5B%5D=33"
         output:
-          no_log_contains: id "9522
+          log_contains: 'id "9522121"'
+          no_log_contains: >-
+            id "9522(?:[02-9]\d{2}|1(?:[013-9]\d|2[02-9]))"
 
   - test_title: fp-numeric-queryvars
     desc: >

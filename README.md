@@ -10,6 +10,15 @@ It's encouraged to install the wordpress-exclusions-rules-plugin as well, as we 
 
 The idea is to enhance the security of WordPress while minimizing the impact on PHP/SQL performance and eliminating the need for additional wordpress security plugins without interfering with wordpress or owasp.
 
+Rule `9522202` allows the exact article paths `/blog/wp-config-guide`,
+`/nginx.conf-tutorial`, and `/wp-content/mu-plugins-info` with or without a
+trailing slash, so the origin can canonicalize their URLs. WordPress
+[canonical redirects](https://developer.wordpress.org/reference/functions/redirect_canonical/)
+follow the configured permalink style. These exceptions do not cover nested
+paths or filename suffixes. The separate `/wp-config-staging.php` exception
+remains exact. Login rate-limit counters run silently; threshold violations
+and the compression and response-header diagnostics still log.
+
 What this plugin does so far:
 - Block xmlrpc.php access (configurable, default: block) (PL1)
 - Block user enumeration (configurable, default: block) (PL1)
@@ -35,10 +44,18 @@ What this plugin does so far:
 - IP-based rate limiting for wp-login.php (configurable, default: 5 attempts per 60 seconds, replies with HTTP 429 per RFC 6585) (PL1)
 - GeoIP-based access control for wp-login.php (configurable, default: disabled) (PL1)
 - Automatic IP reputation blocklist blocking all requests from listed IPs/CIDRs (configurable, default: disabled) (PL1)
-- Trusted-proxy pinning for X-Forwarded-For (configurable, default: disabled — backward compatible) (PL1)
-- IPv6-aware client-IP resolution and private-network whitelisting (loopback + RFC 1918 + IPv6 `::1` + ULA `fc00::/7`)
+- Optional trusted-proxy pinning for X-Forwarded-For (enabled within the IP file; no proxies
+  trusted until configured) (PL1)
+- Optional IPv6-aware client-IP resolution and private-network whitelisting (loopback + RFC 1918 + IPv6 `::1` + ULA `fc00::/7`)
 - Detect version-disclosure response headers — X-Pingback, X-Powered-By, REST Link rel=api.w.org. Real stripping must be at the proxy: `proxy_hide_header X-Pingback; proxy_hide_header X-Powered-By; more_clear_headers "Link";` (configurable, default: tag) (PL1)
-- Hard-block info-leak paths in phase:1 — readme.html, license.txt, .user.ini, wp-admin/install.php, wp-admin/setup-config.php, wp-includes/wlwmanifest.xml, wp-content/debug.log (configurable, default: block) (PL1)
+- Hard-block info-leak paths in phase:1: readme.html, license.txt, .user.ini,
+  wp-admin/install.php, wp-admin/setup-config.php, wp-includes/wlwmanifest.xml,
+  and wp-content/debug.log (configurable, default: block) (PL1). All listed
+  files also match slash-delimited PATH_INFO suffixes such as `readme.html/extra`.
+  Static-file suffix protection covers origins explicitly configured to accept
+  PATH_INFO, such as [Apache `AcceptPathInfo On`](https://httpd.apache.org/docs/2.4/mod/core.html#acceptpathinfo).
+  The raw path is decoded once, preserving filename boundaries and leaving
+  double-encoded names and separators unmatched.
 - Block CVE-2018-6389 DoS — long `?load=` on wp-admin/load-scripts.php and load-styles.php (configurable, default: block) (PL1)
 - Block VCS / dotfile probes — .env, .git/, .svn/, .hg/, .bzr/, .htpasswd, .DS_Store (configurable, default: block) (PL1)
 - Block wp-config backup variants — .save, .old, .new, .dist, .sample, .copy, ~, numeric .1/.2 (configurable, default: block) (PL1)
@@ -55,45 +72,97 @@ What this plugin does so far:
 
 > **Why these were added:** CRS already runs libinjection (`@detectSQLi`/`@detectXSS`) on all arguments at PL1. The rules above do **not** duplicate that — they add the *semantic/typed* parameter validation CRS lacks, which is exactly where the 2025–2026 wave of (often AI-discovered) WordPress plugin SQLi/XSS CVEs slips through.
 
+## Optional IP rules
+
+Client-IP resolution, X-Forwarded-For trust, private-client exemptions, and IP
+reputation require **`plugins/wordpress-hardening-ip.conf`**. Its name is outside
+the standard `*-config.conf`, `*-before.conf`, and `*-after.conf` loader globs.
+The base plugin runs without it and applies endpoint protections to private
+clients too. Merely copying this file into the plugins directory does not load it.
+
+**Upgrading:** explicitly include the IP file to retain the previous private-IP
+exemptions and reputation behavior. Keep all operator overrides before it:
+
+```apache
+Include /path/to/plugins/*-config.conf
+# Operator overrides, including an optional plugin disable flag, go here.
+Include /path/to/plugins/wordpress-hardening-ip.conf
+Include /path/to/plugins/*-before.conf
+# Optional Apache login limiter (requires the IP file above):
+# Include /path/to/plugins/wordpress-hardening-ratelimit.conf
+Include /path/to/crs/rules/*.conf
+Include /path/to/plugins/*-after.conf
+```
+
+With a managed CRS loader, place the explicit IP include after its config-file
+stage and before its before-file stage. Load it only once. Deploy its reputation
+and trusted-proxy `.data` files alongside it. The plugin disable flag still
+turns off the IP rules in both request phases.
+
+GeoIP remains in the base file and can run without IP resolution; its
+private-client exemption requires the IP include. Login rate limiting remains a
+separate optional file and requires the IP include for its collection key and
+private-client exemption. Coraza supports the IP file, but cannot load the
+persistent rate-limit file.
+
 ## IP Whitelisting
 
 The blocked endpoints (`xmlrpc.php`, `wp-json`, `wp-cron.php`), the rate-limit counter, the GeoIP login gate, and the IP-reputation blocklist all share a **single** client-IP resolver and a **single** "is-this-a-private-IP?" decision, so the same identity is used everywhere.
 
-Whitelisted by default:
+With the optional IP file loaded, these ranges are whitelisted:
 
 - `127.0.0.0/8` (IPv4 loopback)
 - `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` (IPv4 RFC 1918)
 - `::1` (IPv6 loopback)
 - `fc00::/7` (IPv6 Unique Local addresses, RFC 4193)
 
-This allows internal systems (cron jobs, monitoring, load balancers) to access these endpoints while blocking external attacks.
+This allows internal systems (cron jobs, monitoring, load balancers) to access
+these endpoints while blocking external attacks. A private peer with present
+but untrusted or malformed XFF does not receive this exemption.
 
 ### Client-IP resolution
 
-`tx.wphard.client_ip` is built in phase 1 as follows:
+With `wordpress-hardening-ip.conf` loaded, `tx.wphard.client_ip` is built in phase 1 as follows:
 
 1. Default to `REMOTE_ADDR` (the directly-connected peer).
 2. If `X-Forwarded-For` is present **and trusted** (see [Trusted-Proxy Pinning](#trusted-proxy-pinning) below), take the leftmost hop. IPv4 and IPv6 first hops are both recognised; malformed values like `1.2.3.4junk` are rejected.
 
 ### Trusted-Proxy Pinning
 
-By default the plugin honours `X-Forwarded-For` unconditionally — this is backward compatible and correct for any deployment behind a single trusted proxy (Cloudflare, nginx with `set_real_ip_from`, HAProxy). On a server with direct internet exposure, an attacker can otherwise spoof `X-Forwarded-For` and bypass the private-IP whitelist or rotate the rate-limit key.
+By default the optional IP rules ignore `X-Forwarded-For` and use `REMOTE_ADDR` because
+trusted-proxy pinning is enabled and the shipped proxy list is empty. A direct
+client cannot claim a private address to obtain the private-IP whitelist.
 
-To eliminate that footgun:
+For a reverse-proxy deployment, populate
+`plugins/wordpress-hardening-trusted-proxies.data` with only the CIDRs of your
+immediate upstream proxies as seen in `REMOTE_ADDR`, including private proxy
+addresses. Those proxies **must overwrite client-supplied XFF**,
+because the resolver uses its leftmost address. XFF is then honoured only when
+`REMOTE_ADDR` matches the list; all other peers still use `REMOTE_ADDR`.
 
-1. Populate `plugins/wordpress-hardening-trusted-proxies.data` with the public CIDRs of your real upstream proxies (one per line).
-2. Enable pinning in `plugins/wordpress-hardening-config.conf`:
-   ```bash
-   SecAction "id:9522055,phase:1,nolog,pass,t:none,setvar:'tx.wphard.trusted_proxies_enabled=1'"
-   ```
+When XFF is present but the peer is unlisted or the first hop cannot be parsed,
+the peer's private address cannot grant a private-client exemption. Normal
+checks still use `REMOTE_ADDR`. Direct private clients without XFF and listed
+proxies with a parsed private first hop keep their exemption.
 
-When enabled, `X-Forwarded-For` is honoured **only** if `REMOTE_ADDR` is in that list; otherwise the resolver falls back to `REMOTE_ADDR`.
+**Upgrade:** deployments that previously relied on unconditional XFF trust must
+populate this list. Keep `tx.wphard.trusted_proxies_enabled=1` (the default). An
+explicit value of `0` retains legacy unconditional trust and is unsafe on a
+directly reachable server. If the web server rewrites `REMOTE_ADDR` itself,
+configure and secure that trust boundary there as well.
 
 > **Scope:** the private-IP whitelist only applies to the xmlrpc / wp-json / wp-cron rules (`9522102`, `9522107`, `9522111`, `9522207`). The user-enumeration rule (`9522104`), the direct-PHP-access rule (`9522200`), sensitive-files (`9522202`/`9522206`), info-leak (`9522100`), VCS-dotfile (`9522113`), and the audit-round-4 protections (`9522112`-`9522122`, `9522701`-`9522703`) apply to **all** clients regardless of source IP — they are flagging request shapes that no legitimate caller (internal or external) produces.
 
 ## Configuration
 
-All features are **enabled by default** with sensible defaults. To override defaults or disable specific protections, uncomment the corresponding `SecAction` line in `plugins/wordpress-hardening-config.conf`.
+The base protections use the defaults listed above; IP features require the explicit include. To override defaults or disable specific protections, uncomment the corresponding `SecAction` line in `plugins/wordpress-hardening-config.conf`.
+
+`block_load_scripts_dos` sums decoded `load` and `load[...]` values for
+`wp-admin/load-scripts.php` and `load-styles.php`. Rule `9522112` rejects totals
+of 80 bytes or more. When every load key is exactly `load[chunk_N]` (a numeric
+index) and each value is at most 128 bytes, the aggregate cutoff is 1024 bytes.
+Mixed keys, oversized chunks, leading spaces and suffixes such as `load[a]x`
+keep the 80-byte cutoff. Repeated parameters count toward the total.
 
 **Important note on `block_admin_login`**: This rule blocks login attempts that use the **literal username "admin"** — it does NOT block all administrator accounts. Only WordPress installations with a user named exactly "admin" will be affected.
 
@@ -104,7 +173,8 @@ force attacks — in the **separate, opt-in file
 `plugins/wordpress-hardening-ratelimit.conf`**. It is *not* loaded by the
 standard CRS plugin loader (which only picks up `*-config.conf`,
 `*-before.conf` and `*-after.conf`); to enable it, add an explicit
-`Include` for the file *after* the plugin before-file:
+`Include` for the file *after* the plugin before-file, with
+`wordpress-hardening-ip.conf` already included before the main rules:
 
 ```apache
 Include /path/to/plugins/wordpress-hardening-ratelimit.conf
@@ -114,7 +184,10 @@ Include /path/to/plugins/wordpress-hardening-ratelimit.conf
 - Tracks all POST requests to `/wp-login.php` per resolved client IP
 - Locks out an IP after exceeding the attempt threshold
 - Whitelist prevents rate limiting for trusted IPs (loopback + private ranges, IPv4 and IPv6)
-- Blocks return **HTTP 429 Too Many Requests** (RFC 6585 §4) and export `wphard_retry_after` as an env var so the webserver can add a `Retry-After` header to the response
+- Blocks return **HTTP 429 Too Many Requests** (RFC 6585 §4) and export
+  `wphard_retry_after=60` as an env var. The response has a `Retry-After: 60`
+  header only when the webserver header directive below is configured;
+  otherwise the header is absent.
 
 > **⚠️ Engine support:** rate limiting relies on persistent collections
 > (`initcol:ip=...` + `IP:` variables). This works reliably on **Apache +
@@ -128,21 +201,31 @@ Include /path/to/plugins/wordpress-hardening-ratelimit.conf
 > is a fatal error. On libmodsec3 or Coraza, prefer your webserver's
 > native rate-limiter (e.g. nginx/Angie's `limit_req zone=...`) or
 > fail2ban for `/wp-login.php`.
-
-> **⚠️ Collection growth (DoS):** `initcol:ip=%{client_ip}` creates one
-> SDBM entry per resolved IP under `SecDataDir`. The plugin does NOT set
-> `SecCollectionTimeout` (the CRS plugin convention says only operators
-> may set it). On a server with direct internet exposure — i.e. where
-> trusted-proxy pinning is OFF — an attacker rotating source IPs (easy
-> over IPv6) can grow the collection file unboundedly. Operators MUST:
 >
-> 1. Set `SecCollectionTimeout 300` (or higher) in the engine config.
-> 2. Place `SecDataDir` on a partition that can absorb growth or has a
->    housekeeping cron.
-> 3. Enable [Trusted-Proxy Pinning](#trusted-proxy-pinning) on direct-
->    exposure servers so the counter keys on a vetted upstream.
+> **⚠️ Collection growth (DoS):** `initcol:ip=%{client_ip}` creates one
+> SDBM entry per resolved IP under `SecDataDir`. Expiring the
+> `ip.login_attempts` variable after 60 seconds does not remove the
+> collection's SDBM record in the tested Apache/mod_security2 setup. A
+> disposable probe found
+> 20 distinct records still present after `SecCollectionTimeout 3` elapsed;
+> a new client raised the count to 21. The plugin does not set this
+> engine-wide directive, and setting it alone does not bound disk growth
+> from clients that never return. Directly exposed servers can receive
+> rotating real source IPs (especially IPv6); disabling proxy pinning also
+> permits forged XFF keys. Operators should:
+>
+> 1. Prefer a webserver or edge limiter with bounded storage for
+>    internet-facing login traffic.
+> 2. If using this optional rule, keep
+>    [Trusted-Proxy Pinning](#trusted-proxy-pinning) enabled, monitor
+>    `SecDataDir` usage, and provision an explicit capacity limit and
+>    maintenance procedure. Rotate the SDBM files only while Apache is
+>    stopped; this resets active counters.
+> 3. Set `SecCollectionTimeout` in the engine config for logical
+>    collection expiry, but do not treat it as SDBM file reclamation.
 
-**Default settings:**
+**Settings when the optional file is included:**
+
 - **Enabled by default** (`ratelimit_login_enabled`)
 - **5 login attempts** per IP (`ratelimit_login_attempts`)
 - **60 second window** (fixed — not configurable)
@@ -167,9 +250,11 @@ Uncomment these in `plugins/wordpress-hardening-config.conf` to override default
 
 ### `Retry-After` response header (optional)
 
-Rule `9522412` calls `setenv:wphard_retry_after=<seconds>` whenever it blocks
-with 429. To expose that as an HTTP response header, add the following to your
-webserver config:
+Rule `9522412` calls `setenv:wphard_retry_after=60` whenever it blocks with
+429. The rule does not add an HTTP response header by itself. Add the following
+directive to your webserver config to expose it; with the Apache directive,
+the throttled response is `Retry-After: 60`. If the directive is not configured,
+the `Retry-After` header is absent.
 
 **nginx / Angie:**
 ```nginx
@@ -183,12 +268,17 @@ Header always set Retry-After "%{wphard_retry_after}e" env=wphard_retry_after
 
 ## GeoIP-Based Access Control for wp-login.php
 
+The country-header checks work with the base plugin. Add the optional IP include
+to retain the private-client exemption described below.
+
 Blocks access to `wp-login.php` for clients from countries not in the allowed list. No GeoIP database is required on the WAF — the upstream proxy sets a standard header and ModSecurity reads it.
 
 **How it works:**
 - Upstream proxy (Cloudflare, nginx + ngx_http_geoip2_module, HAProxy, etc.) sets `CF-IPCountry` or `X-GeoIP-Country` with the client's 2-letter ISO 3166-1 country code
 - Requests without a recognized country header are **allowed through** (fail-open)
-- Loopback and private ranges (IPv4 RFC 1918 + IPv6 `::1` and ULA `fc00::/7`) are always whitelisted
+- Loopback and private ranges (IPv4 RFC 1918 + IPv6 `::1` and ULA
+  `fc00::/7`) are whitelisted when XFF is absent or resolves to a trusted
+  private first hop
 - Allowed countries are listed one per line in `plugins/wordpress-hardening-login-countries.data`
 
 **Default settings:**
@@ -212,19 +302,26 @@ Blocks access to `wp-login.php` for clients from countries not in the allowed li
 
 ## IP Reputation Blocklist
 
+Requires the [optional IP rules](#optional-ip-rules) include, in addition to the
+reputation enable flag below.
+
 Blocks **all requests** (not just login attempts) from IP addresses listed in `plugins/wordpress-hardening-ip-reputation.data`. Supports individual IPs and CIDR ranges. No external API or database required — the blocklist is a plain text file you populate from threat intelligence feeds or your own data.
 
 **How it works:**
 - Uses the shared resolved client IP (`tx.wphard.client_ip`) — see [Client-IP resolution](#client-ip-resolution) above
 - Uses ModSecurity's `@ipMatchFromFile` operator — supports IPv4, IPv6, and CIDR notation
-- Loopback and private ranges (IPv4 RFC 1918 + IPv6 `::1` and ULA `fc00::/7`) are always whitelisted
+- Loopback and private ranges (IPv4 RFC 1918 + IPv6 `::1` and ULA
+  `fc00::/7`) are whitelisted when XFF is absent or resolves to a trusted
+  private first hop
 - Applies globally (all URIs, not just `wp-login.php`)
 
 **Default settings:**
 - **Disabled by default** (`ip_reputation_enabled=0`)
 - Data file ships with `192.0.2.0/24` (RFC 5737 documentation range used for CI tests) — replace with real entries in production
 
-> **Security note:** `X-Forwarded-For` is trusted by default. For deployments without a proxy in front, enable [trusted-proxy pinning](#trusted-proxy-pinning) before turning this feature on, or attackers can rotate XFF to evade the blocklist.
+> **Security note:** keep [trusted-proxy pinning](#trusted-proxy-pinning)
+> enabled. List only proxies that overwrite XFF so clients cannot rotate a
+> forged header to evade the blocklist.
 
 **To enable:**
 1. Uncomment the SecAction in `plugins/wordpress-hardening-config.conf`:
@@ -250,12 +347,15 @@ The plugin uses the allocated range **9522000-9522999**. Major buckets:
 | Range | Purpose |
 |---|---|
 | `9522010`-`9522055` | Config-knob `SecAction`s (commented examples in `config.conf`) |
-| `9522012`-`9522050` | Default-value setters (in `before.conf`, IPv6/proxy series) |
+| `9522012`-`9522050` | Default-value setters (main before-file; 9522047/9522050 in optional IP file) |
 | `9522071`-`9522081` | Default-value setters (in `before.conf`, audit-round-4 protections) |
-| `9522060`-`9522065` | Client-IP resolver (`REMOTE_ADDR`, XFF v4/v6, trusted-proxy gate, `client_is_private`) |
+| `9522069`-`9522070` | Optional IP disable guards (phases 1 and 2) |
+| `9522060`-`9522068` | Optional client-IP resolver (`REMOTE_ADDR`, XFF v4/v6, trusted-proxy gate, `client_is_private`) |
 | `9522099` | Plugin kill-switch (removes 9522000-9522999 except itself) |
 | `9522101`-`9522111` | xmlrpc / user-enumeration / REST API / admin-login / wp-cron blocks |
+| `9522126`-`9522131` | Load budget helpers for `9522112` |
 | `9522150`-`9522155` | Per-group whitelist (uses `client_is_private`) |
+| `9522198` | Exact-path skip for known benign static assets |
 | `9522199`-`9522207` | Static-asset fast path, direct-PHP guard, files.data, uploads, sensitive files |
 | `9522300`-`9522320` | Editor / backup / DB / upload-traversal / null-byte / scanner / debug / login-injection / dangerous-admin |
 | `9522400`-`9522414` | Rate-limit gate, whitelist, per-IP counter (fixed 60s expiry), 429 block |

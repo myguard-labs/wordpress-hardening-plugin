@@ -1,0 +1,7 @@
+[
+  {"name":"lowercase-get-login","method":"get","uri":"/wp-login.php","no_expect_ids":[9522119]},
+  {"name":"mixed-post-login","method":"Post","uri":"/wp-login.php","no_expect_ids":[9522119]},
+  {"name":"mixed-head-admin","method":"hEaD","uri":"/wp-admin/","no_expect_ids":[9522119]},
+  {"name":"mixed-unknown-login","method":"tRaCe","uri":"/wp-login.php","expect_ids":[9522119]},
+  {"name":"unknown-public-page","method":"tRaCe","uri":"/about","no_expect_ids":[9522119]}
+]

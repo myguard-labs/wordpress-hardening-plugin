@@ -1,5 +1,5 @@
 ---
-on:
+on:  # yamllint disable-line rule:truthy
   push:
     branches: [master]
   pull_request:
@@ -16,60 +16,37 @@ jobs:
   validate-files:
     name: Validate Plugin Files
     runs-on: [self-hosted, builder02, lxc]
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+      # actions/checkout v4.2.2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
+          fetch-depth: 0
           persist-credentials: false
 
-      - name: Check @pmFromFile references
-        run: |
-          # Validate that all @pmFromFile references point to existing .data files
-          grep -r "@pmFromFile" plugins/*.conf | while read -r line; do
-            file=$(echo "$line" | sed -n 's/.*@pmFromFile "\?\([^ "]*\).*/\1/p')
-            if [ -n "$file" ]; then
-              if [ ! -f "plugins/$file" ]; then
-                echo "ERROR: Referenced file not found: $file"
-                exit 1
-              fi
-            fi
-          done
-          echo "✓ All @pmFromFile references valid"
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+        with:
+          go-version: stable
+          cache-dependency-path: tests/coraza/go.sum
 
-      - name: Check Rule ID ranges
+      - name: CI unit tests
         run: |
-          # Validate that all rules are in the allocated range 9522000-9522999
-          grep -o 'id:[0-9]*' plugins/*.conf | cut -d: -f2 | while read -r id; do
-            if [ "$id" -lt 9522000 ] || [ "$id" -gt 9522999 ]; then
-              echo "ERROR: Rule ID $id outside allocated range (9522000-9522999)"
-              exit 1
-            fi
-          done
-          echo "✓ All Rule IDs in valid range"
+          python3 -m venv "$RUNNER_TEMP/plugin-lint-venv"
+          "$RUNNER_TEMP/plugin-lint-venv/bin/python" -m pip install \
+            --disable-pip-version-check PyYAML==6.0.2 crs-linter==1.2.0
+          export PATH="$RUNNER_TEMP/plugin-lint-venv/bin:$PATH"
+          "$RUNNER_TEMP/plugin-lint-venv/bin/python" \
+            ci/check_ftw_positives.py \
+            tests/regression/wordpress-hardening-plugin \
+            tests/integration/.ftw.yml
+          "$RUNNER_TEMP/plugin-lint-venv/bin/python" -B -m unittest \
+            discover -s ci -p 'test_*.py'
 
-      - name: Check for duplicate Rule IDs
-        run: |
-          # Ensure no duplicate rule IDs
-          dupes=$(grep -oh 'id:[0-9]*' plugins/*.conf | cut -d: -f2 | sort | uniq -d)
-          if [ -n "$dupes" ]; then
-            echo "ERROR: Duplicate Rule IDs found: $dupes"
-            exit 1
-          fi
-          echo "✓ No duplicate Rule IDs"
-
-      - name: Validate test file references
-        run: |
-          # Check that test files reference valid rule IDs
-          for testfile in tests/regression/wordpress-hardening-plugin/*.yaml; do
-            ruleid=$(basename "$testfile" .yaml)
-            # Verify this rule ID exists in config files
-            if ! grep -q "id:$ruleid" plugins/*.conf; then
-              echo "ERROR: Test file $testfile references non-existent rule ID $ruleid"
-              exit 1
-            fi
-          done
-          echo "✓ All test files reference valid rule IDs"
+      - name: Validate plugin file references and IDs
+        run: bash scripts/ci-local.sh --validate-files
 
   plugin-lint:
     needs: validate-files
-    # Official OWASP CRS plugin lint (pinned SHA for v3.0.0).
-    uses: coreruleset/crs-plugin-test-action/.github/workflows/lint.yaml@7e1ee6d07105ae3cb6eec95e45acb5e1a895e3d4
+    # Local copy of the OWASP CRS plugin lint checks. Repository policy permits
+    # reusable workflows from this repository, but rejects external calls.
+    uses: ./.github/workflows/plugin-lint.yml

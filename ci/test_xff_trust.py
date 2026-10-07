@@ -1,0 +1,218 @@
+"""Check XFF engine fixtures and CRS image selection without Docker."""
+
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+from ci import check_xff_trust
+
+
+class XffTrustTests(unittest.TestCase):
+    def test_repeated_xff_is_sent_as_distinct_field_lines(self):
+        with mock.patch.object(check_xff_trust.http.client, "HTTPConnection") as factory:
+            factory.return_value.getresponse.return_value.status = 403
+            status = check_xff_trust.repeated_status(
+                "http://198.18.0.2:8080", "/xmlrpc.php", ("bad", "10.0.0.5")
+            )
+        self.assertEqual(403, status)
+        factory.assert_called_once_with("198.18.0.2", 8080, timeout=3)
+        self.assertEqual(
+            [
+                mock.call("X-Forwarded-For", "bad"),
+                mock.call("X-Forwarded-For", "10.0.0.5"),
+            ],
+            [
+                call
+                for call in factory.return_value.putheader.call_args_list
+                if call.args[0] == "X-Forwarded-For"
+            ],
+        )
+        factory.return_value.close.assert_called_once()
+
+    def test_repeated_cases_cover_malformed_and_private_orderings(self):
+        self.assertIn(
+            ("malformed-then-private", ("bad", "10.0.0.5"), (403, 403)),
+            check_xff_trust.REPEATED_HEADERS,
+        )
+        self.assertIn(
+            ("private-then-public", ("10.0.0.5", "8.8.8.8"), (200, 200)),
+            check_xff_trust.REPEATED_HEADERS,
+        )
+
+    def test_parser_cases_reuse_corpus_and_preserve_order(self):
+        with mock.patch.object(
+            check_xff_trust, "address_corpus", wraps=check_xff_trust.address_corpus
+        ) as corpus:
+            cases = list(check_xff_trust.parser_cases())
+        self.assertEqual(1, corpus.call_count)
+        self.assertEqual(973, len(cases))
+        self.assertEqual(
+            "565dba030907b0a82ea6604b56b674b1bae4a9f72e138745678c589d78dc7c2a",
+            hashlib.sha256(json.dumps(cases, sort_keys=True).encode()).hexdigest(),
+        )
+
+    def test_parser_transaction_name_includes_header_representation(self):
+        cases = check_xff_trust.parser_transactions("trusted", "198.18.0.1")
+        case = next(
+            case for case in cases if case["headers"]["X-Forwarded-For"] == "[::1]:443"
+        )
+        self.assertIn("'[::1]:443'", case["name"])
+
+    def test_failing_coraza_parser_case_names_header_without_fixture(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            for name in ("main.go", "go.mod", "go.sum"):
+                shutil.copyfile(
+                    check_xff_trust.ROOT / "tests/coraza" / name, directory / name
+                )
+            probe = directory / "coraza-probe"
+            subprocess.run(
+                ["go", "build", "-mod=readonly", "-o", str(probe), "."],
+                cwd=directory,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            fixture = directory / "transactions.json"
+            case = next(
+                case
+                for case in check_xff_trust.parser_transactions("trusted", "198.18.0.1")
+                if case["headers"]["X-Forwarded-For"] == "[::1]:443"
+            )
+            case["expect_ids"] = [9999999]  # Force the probe's named failure path.
+            fixture.write_text(json.dumps([case]))
+            setup = directory / "setup.conf"
+            setup.write_text('SecDefaultAction "phase:2,log,deny,status:403"\n')
+            result = subprocess.run(
+                [str(probe), "-tx", str(fixture), str(setup)],
+                cwd=directory,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            fixture.unlink()
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("FAIL " + case["name"], result.stdout, result.stderr)
+            self.assertIn("'[::1]:443'", result.stdout)
+
+    def test_private_proxy_cases_include_malformed_headers_when_trusted(self):
+        cases = check_xff_trust.peer_cases(True)
+        self.assertIn(("private-peer-empty-XFF", "", False), cases)
+        self.assertIn(("private-peer-malformed-XFF", "127.0.0.1junk", False), cases)
+        self.assertIn(
+            ("private-peer-malformed-whitespace-v4-XFF", "127.0.0.1 junk", False),
+            cases,
+        )
+        self.assertIn(
+            ("private-peer-malformed-whitespace-v6-XFF", "::1 junk", False), cases
+        )
+        self.assertIn(
+            ("private-peer-private-comma-XFF", "10.0.0.5 , 8.8.8.8", True), cases
+        )
+        self.assertIn(
+            ("private-peer-private-whitespace-XFF", "10.0.0.5   ", True), cases
+        )
+        self.assertIn(("private-peer-private-XFF", "10.0.0.5", True), cases)
+        self.assertIn(("private-peer-v4-port-XFF", "10.0.0.5:8080", True), cases)
+        self.assertIn(("private-peer-v6-port-XFF", "[::1]:443", True), cases)
+        self.assertIn(
+            ("private-peer-malformed-v4-port-XFF", "10.0.0.5:65536", False), cases
+        )
+        self.assertIn(
+            ("private-peer-malformed-v6-port-XFF", "[::1]:65536", False), cases
+        )
+        self.assertIn(("private-peer-no-header", None, False), cases)
+        for name, header in (
+            ("private-peer-missing-v6-bracket", "[::1"),
+            ("private-peer-extra-v6-bracket", "::1]"),
+            ("private-peer-mapped-invalid-999", "::ffff:10.999.999.999"),
+            ("private-peer-mapped-invalid-256", "::ffff:127.0.0.256"),
+            ("private-peer-mapped-leading-zero-3", "::ffff:127.000.0.1"),
+            ("private-peer-mapped-leading-zero-2", "::ffff:127.0.0.01"),
+        ):
+            self.assertIn((name, header, False), cases)
+        self.assertIn(("private-peer-bracketed-v6", "[::1]", True), cases)
+        self.assertIn(("spoof-v6-full", "0:0:0:0:0:0:0:1", True), check_xff_trust.CASES)
+        self.assertIn(
+            ("private-peer-mapped-comma", "::ffff:10.0.0.1, 8.8.8.8", True), cases
+        )
+        self.assertIn(("private-peer-v6-whitespace", "::1   ", True), cases)
+
+    def test_trust_modes_stage_explicit_values_and_proxy_boundary(self):
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            mock.patch.object(check_xff_trust, "ROOT", Path(temporary)),
+        ):
+            (Path(temporary) / "plugins").mkdir()
+            for mode, value in (
+                ("default", None),
+                ("trusted", 1),
+                ("untrusted", 1),
+                ("legacy", 0),
+                ("unsupported", 2),
+                ("textual", "false"),
+            ):
+                target = Path(temporary) / mode
+                check_xff_trust.stage(target, mode, "198.18.0.1")
+                config = target / "ci-xff-probe-config.conf"
+                if value is None:
+                    self.assertFalse(config.exists())
+                else:
+                    self.assertIn(
+                        f"trusted_proxies_enabled={value}", config.read_text()
+                    )
+                if mode != "default":
+                    proxy = (
+                        target / "wordpress-hardening-trusted-proxies.data"
+                    ).read_text()
+                    self.assertIn(
+                        "198.18.0.1" if mode == "trusted" else "198.18.0.2", proxy
+                    )
+
+    def test_workflow_tags_are_used_for_images_and_detect_drift(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            workflows = Path(temporary) / ".github/workflows"
+            workflows.mkdir(parents=True)
+            for name in check_xff_trust.TAG_WORKFLOWS:
+                (workflows / name).write_text(
+                    'env:\n  CRS_TAG: "apache-test"\n  CRS_TAG_NGINX: "nginx-test"\n'
+                )
+            with mock.patch.object(check_xff_trust, "ROOT", Path(temporary)):
+                with mock.patch.dict(os.environ, {}, clear=True):
+                    tags = check_xff_trust.workflow_tags()
+                    self.assertEqual(
+                        "owasp/modsecurity-crs:apache-test",
+                        check_xff_trust.selected_image("apache", tags),
+                    )
+                    self.assertEqual(
+                        "owasp/modsecurity-crs:nginx-test",
+                        check_xff_trust.selected_image("nginx", tags),
+                    )
+                    self.assertEqual(
+                        "custom:local",
+                        check_xff_trust.selected_image("nginx", tags, "custom:local"),
+                    )
+                    changed = workflows / check_xff_trust.TAG_WORKFLOWS[1]
+                    changed.write_text(
+                        changed.read_text().replace("nginx-test", "stale-tag")
+                    )
+                    with self.assertRaisesRegex(ValueError, "CRS_TAG_NGINX differs"):
+                        check_xff_trust.workflow_tags()
+                    changed.write_text(
+                        changed.read_text().replace("stale-tag", "nginx-test")
+                    )
+                with (
+                    mock.patch.dict(os.environ, {"CRS_TAG": "stale-env"}),
+                    self.assertRaisesRegex(ValueError, "CRS_TAG environment differs"),
+                ):
+                    check_xff_trust.workflow_tags()
+
+
+if __name__ == "__main__":
+    unittest.main()

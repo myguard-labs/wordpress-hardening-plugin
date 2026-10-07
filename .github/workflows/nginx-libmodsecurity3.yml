@@ -1,5 +1,5 @@
 ---
-# nginx + libmodsecurity3 v3 — PARSE / LOAD gate (the production engine).
+# nginx + libmodsecurity3 v3 — load, smoke and targeted behavior gate.
 #
 # This job proves the plugin's rules PARSE and LOAD on libmodsecurity3 v3 (the
 # engine mail.myguard.nl actually runs) and that the engine evaluates them —
@@ -11,7 +11,8 @@
 # byte-identical rules run green and deterministic on Apache + mod_security2,
 # which is the blocking *functional* gate in apache-modsecurity2.yml). Gating a
 # mandatory check on a flaky engine would mean retry hacks or spurious red, so
-# functionality is gated on Apache and loadability is gated here.
+# the full regression suite runs on Apache; this lane also checks optional IP
+# behavior and XFF trust against nginx.
 #
 # How the gate works:
 #   1. The official CRS image loads all rules at nginx startup; a rule that is
@@ -21,6 +22,7 @@
 #      collection — the parts that flake) confirms rules are actually active:
 #      GET /wp-json/ must trip rule 9522207 (REST-API root block), and the
 #      homepage must stay clean.
+#   3. Targeted checks cover optional IP selection and XFF trust.
 #
 # Security note: the only run:-context interpolation is github.token.
 on:
@@ -44,8 +46,9 @@ jobs:
   nginx-libmodsecurity3:
     name: nginx + libmodsecurity3
     runs-on: [self-hosted, builder02, docker]
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
         with:
           persist-credentials: false
 
@@ -61,6 +64,10 @@ jobs:
           mkdir -p tests/integration/.plugins-staged
           cp plugins/* tests/integration/ci-plugin/* \
              tests/integration/.plugins-staged/
+          # Explicit IP opt-in after all config files, before the main rules.
+          printf 'Include %s/wordpress-hardening-ip.conf\n' \
+            /etc/modsecurity.d/owasp-crs/plugins \
+            > tests/integration/.plugins-staged/aaa-ci-ip-before.conf
           # Keep the opt-in rate-limit rules in the v3 parse/load gate: stage
           # the file under a *-before.conf name so the CRS loader includes it
           # (its real name is outside the globs because it is Coraza-fatal).
@@ -106,6 +113,21 @@ jobs:
             exit 1
           fi
           echo "smoke OK: 9522207 fired on /wp-json/, homepage clean"
+
+      - name: Verify optional IP selection and plugin disable behavior
+        run: python3 -m ci.check_optional_ip nginx
+
+      - name: Verify encoded load array budget on nginx v3
+        run: python3 -m ci.check_load_budget_v3
+
+      - name: Verify phase-one encoded-path blockers on nginx v3
+        run: python3 -m ci.check_encoded_paths_v3
+
+      - name: Verify default XFF trust and configured proxies
+        run: python3 ci/check_xff_trust.py nginx
+
+      - name: Verify populated proxy and reputation CIDR files
+        run: python3 -m ci.check_cidr_files nginx
 
       - name: Dump logs on failure
         if: failure()

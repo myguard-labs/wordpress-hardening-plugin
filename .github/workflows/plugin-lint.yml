@@ -1,0 +1,65 @@
+---
+# Mirrors coreruleset/crs-plugin-test-action/.github/workflows/lint.yaml at
+# 7e1ee6d07105ae3cb6eec95e45acb5e1a895e3d4; external calls are blocked.
+name: Plugin Lint
+
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  check-syntax:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repo
+        # actions/checkout v4.2.2
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        # actions/setup-python v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.x'
+
+      - name: Lint YAML
+        run: |
+          python -m pip install yamllint==1.38.0
+          yamllint -f github -d 'extends: default
+          rules:
+            new-line-at-end-of-file:
+              level: warning
+            trailing-spaces:
+              level: warning
+            line-length:
+              max: 1024
+              level: warning
+            indentation: disable
+            comments:
+              require-starting-space: true
+              min-spaces-from-content: 1' tests/regression
+
+      - name: Lint line endings
+        run: |
+          # The former Docker action ran linelint . with its default config.
+          # Pin its source and check tracked files from the clean checkout.
+          linelint_sha=7907a5dca0c28ea7dd05c6d8d8cacded713aca11
+          GOBIN="${RUNNER_TEMP}/linelint-bin" go install \
+            "github.com/fernandrone/linelint@${linelint_sha}"
+          "${RUNNER_TEMP}/linelint-bin/linelint" .
+
+      - name: Check Plugin syntax
+        run: |
+          python -m pip install --upgrade setuptools==80.10.2
+          python -m pip install secrules-parsing==0.3.0
+          secrules-parser -c -v --output-type github -f plugins/*.conf
+
+      - name: Check crs-linter plugin-compatible subset
+        run: |
+          python -m pip install crs-linter==1.2.0
+          python ci/check_crs_linter.py

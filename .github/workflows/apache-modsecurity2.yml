@@ -34,8 +34,9 @@ jobs:
   apache-modsecurity2:
     name: Apache + ModSecurity v2
     runs-on: [self-hosted, builder02, docker]
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
         with:
           persist-credentials: false
 
@@ -45,12 +46,22 @@ jobs:
           : > tests/logs/apache/audit.log
           chmod -R 777 tests/logs
 
+      - name: Verify PHP PATH_INFO at Apache and nginx origins
+        run: bash ci/test_static_pathinfo_origins.sh
+
+      - name: Compare bounded HTTP framing through both engines
+        run: python3 -m ci.check_smuggle_diff
+
       - name: Stage plugins dir (real plugins + CI extras)
         run: |
           rm -rf tests/integration/.plugins-staged
           mkdir -p tests/integration/.plugins-staged
           cp plugins/* tests/integration/ci-plugin/* \
              tests/integration/.plugins-staged/
+          # Explicit IP opt-in after all config files, before the main rules.
+          printf 'Include %s/wordpress-hardening-ip.conf\n' \
+            /etc/modsecurity.d/owasp-crs/plugins \
+            > tests/integration/.plugins-staged/aaa-ci-ip-before.conf
           # The opt-in rate-limit file is deliberately named outside the CRS
           # plugin loader globs (Coraza-incompatible; see README). CI tests it
           # on this engine, so stage it under a *-before.conf name to load it.
@@ -91,10 +102,28 @@ jobs:
         run: cat tests/integration/.ftw.yml
 
       - name: Run plugin regression suite
-        run: |
-          ./ftw check -d tests/regression --config tests/integration/.ftw.yml
-          ./ftw run   -d tests/regression --config tests/integration/.ftw.yml \
-            --show-failures-only
+        run: python3 ci/run_regression.py
+
+      - name: Verify optional IP selection and plugin disable behavior
+        run: python3 -m ci.check_optional_ip apache
+
+      - name: Verify default XFF trust and configured proxies
+        run: python3 ci/check_xff_trust.py apache
+
+      - name: Verify populated proxy and reputation CIDR files
+        run: python3 -m ci.check_cidr_files apache
+
+      - name: Verify On-mode anomaly threshold blocks a scored request
+        run: python3 -m ci.check_block_mode
+
+      - name: Verify On-mode login rate limit returns HTTP 429
+        run: python3 -m ci.check_ratelimit_mode
+
+      - name: Verify login limiter expires after 60 seconds
+        run: python3 -m ci.check_ratelimit_expiry
+
+      - name: Measure persistent collection growth after timeout
+        run: python3 -m ci.check_ratelimit_growth
 
       - name: Dump logs on failure
         if: failure()
