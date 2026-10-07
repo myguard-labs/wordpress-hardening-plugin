@@ -18,6 +18,7 @@ jobs:
         # actions/checkout v4.2.2
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Python
@@ -57,3 +58,8 @@ jobs:
           python -m pip install --upgrade setuptools==80.10.2
           python -m pip install secrules-parsing==0.3.0
           secrules-parser -c -v --output-type github -f plugins/*.conf
+
+      - name: Check crs-linter plugin-compatible subset
+        run: |
+          python -m pip install crs-linter==1.2.0
+          python ci/check_crs_linter.py

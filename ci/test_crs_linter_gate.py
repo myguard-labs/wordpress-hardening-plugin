@@ -1,0 +1,189 @@
+"""Exercise the mandatory plugin-compatible CRS linter gate."""
+
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from contextlib import redirect_stderr
+from io import StringIO
+from pathlib import Path
+from unittest import mock
+
+import yaml
+
+from ci.check_crs_linter import check
+
+ROOT = Path(__file__).resolve().parents[1]
+GATE = ROOT / "ci/check_crs_linter.py"
+BEFORE = ROOT / "plugins/wordpress-hardening-before.conf"
+
+
+@unittest.skipUnless(shutil.which("crs-linter"), "crs-linter is not installed")
+class CrsLinterGateTests(unittest.TestCase):
+    def run_gate(self, source):
+        with tempfile.TemporaryDirectory() as directory:
+            rules = Path(directory) / BEFORE.name
+            rules.write_text(source)
+            return subprocess.run(
+                [sys.executable, str(GATE), str(rules)],
+                capture_output=True, text=True, check=False, timeout=60,
+            )
+
+    def test_plugin_core_findings_excluded(self):
+        result = self.run_gate(BEFORE.read_text())
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("crs-linter subset: passed", result.stdout)
+
+    def test_matching_rule_glob_passes(self):
+        result = subprocess.run(
+            [sys.executable, str(GATE), str(ROOT / "plugins/wordpress-hardening-before.*")],
+            capture_output=True, text=True, check=False, timeout=60,
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("crs-linter subset: passed", result.stdout)
+
+    def test_pass_without_nolog_fails_named_gate(self):
+        source = BEFORE.read_text()
+        marker = "#crs-linter:ignore:pass_nolog"
+        self.assertIn(marker, source)
+        result = self.run_gate(source.replace(marker, "", 1))
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("rule uses 'pass' without 'nolog'; rule id: 9522121", result.stderr)
+        self.assertIn("crs-linter subset: FAILED", result.stderr)
+
+    def test_malformed_rule_fails_named_gate(self):
+        result = self.run_gate('SecRule ARGS "@rx foo" "id:9522121,broken\n')
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("Can't parse config file:", result.stderr)
+
+    def test_bracketed_filename_malformed_byte_fails_named_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            rules = Path(directory) / "rule[1].conf"
+            rules.write_bytes(b"\xff")
+            pattern = str(Path(directory) / "rule*.conf")
+            result = subprocess.run(
+                [sys.executable, str(GATE), pattern],
+                capture_output=True, text=True, check=False, timeout=60,
+            )
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("crs-linter subset: linter failed (exit 1)", result.stderr)
+
+    def test_malformed_byte_fails_named_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            rules = Path(directory) / BEFORE.name
+            rules.write_bytes(b'\xff')
+            result = subprocess.run(
+                [sys.executable, str(GATE), str(rules)],
+                capture_output=True, text=True, check=False, timeout=60,
+            )
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("crs-linter subset: linter failed (exit 1)", result.stderr)
+
+
+class CrsLinterWiringTests(unittest.TestCase):
+    def test_informational_filename_is_not_a_finding(self):
+        with mock.patch("ci.check_crs_linter.subprocess.run") as run:
+            run.return_value = subprocess.CompletedProcess(
+                [], 0, "", "INFO:root:Config file: /tmp/Invalid action rule.conf\n"
+            )
+            self.assertEqual(0, check([str(BEFORE)]))
+
+    def test_actual_invalid_action_still_fails(self):
+        with mock.patch("ci.check_crs_linter.subprocess.run") as run:
+            run.return_value = subprocess.CompletedProcess(
+                [], 1, "", "ERROR:root:Invalid action broken\n"
+            )
+            self.assertEqual(1, check([str(BEFORE)]))
+
+    def test_disappearing_matched_rule_fails(self):
+        with mock.patch("ci.check_crs_linter.subprocess.run") as run:
+            run.return_value = subprocess.CompletedProcess(
+                [], 1, "", "ERROR:root:Can't open file: /tmp/rule.conf\n"
+            )
+            self.assertEqual(1, check([str(BEFORE)]))
+
+    def test_linter_timeout_fails_with_clear_message(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = Path(directory) / "slow-linter"
+            executable.write_text("#!/usr/bin/env python3\nimport time\ntime.sleep(5)\n")
+            executable.chmod(0o755)
+            stderr = StringIO()
+            with redirect_stderr(stderr):
+                result = check([str(BEFORE)], executable=str(executable), timeout=0.01)
+
+        self.assertEqual(1, result)
+        self.assertEqual(
+            "crs-linter subset: linter timed out after 0.01 seconds\n", stderr.getvalue(),
+        )
+
+    def test_ci_checkouts_fetch_tags_without_persisting_credentials(self):
+        for name, job in (("lint.yml", "validate-files"),
+                          ("plugin-lint.yml", "check-syntax")):
+            with self.subTest(workflow=name):
+                workflow = yaml.safe_load((ROOT / ".github/workflows" / name).read_text())
+                checkout = next(
+                    step for step in workflow["jobs"][job]["steps"]
+                    if step.get("uses", "").startswith("actions/checkout@")
+                )
+                self.assertEqual(0, checkout["with"]["fetch-depth"])
+                self.assertIs(False, checkout["with"]["persist-credentials"])
+
+    def test_nonexistent_literal_rule_path_fails(self):
+        missing = ROOT / "plugins/does-not-exist.conf"
+        result = subprocess.run(
+            [sys.executable, str(GATE), str(missing)],
+            capture_output=True, text=True, check=False, timeout=60,
+        )
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn(f"no rule files matched: {missing}", result.stderr)
+
+    def test_unmatched_rule_glob_fails(self):
+        unmatched = ROOT / "plugins/no-such-rule-*.conf"
+        result = subprocess.run(
+            [sys.executable, str(GATE), str(unmatched)],
+            capture_output=True, text=True, check=False, timeout=60,
+        )
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn(f"no rule files matched: {unmatched}", result.stderr)
+
+    def test_directory_only_rule_glob_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            rule_dir = Path(directory) / "rule-directory"
+            rule_dir.mkdir()
+            result = subprocess.run(
+                [sys.executable, str(GATE), str(Path(directory) / "*")],
+                capture_output=True, text=True, check=False, timeout=60,
+            )
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn(f"matched path is not a rule file: {rule_dir}", result.stderr)
+
+    def test_mixed_file_and_directory_glob_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            rule_dir = Path(directory) / "rule-directory"
+            rule_dir.mkdir()
+            rule_file = Path(directory) / "rule.conf"
+            rule_file.write_text("SecRule ARGS \"@rx foo\" \"id:9522121,phase:1,deny\"\n")
+            result = subprocess.run(
+                [sys.executable, str(GATE), str(Path(directory) / "*")],
+                capture_output=True, text=True, check=False, timeout=60,
+            )
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn(f"matched path is not a rule file: {rule_dir}", result.stderr)
+
+    def test_ci_and_local_run_named_gate(self):
+        workflow = yaml.safe_load((ROOT / ".github/workflows/plugin-lint.yml").read_text())
+        steps = workflow["jobs"]["check-syntax"]["steps"]
+        gate = next(
+            step for step in steps
+            if step.get("name") == "Check crs-linter plugin-compatible subset"
+        )
+        self.assertNotIn("if", gate)
+        self.assertIn("python -m pip install crs-linter==1.2.0", gate["run"])
+        self.assertIn("python ci/check_crs_linter.py", gate["run"])
+        local = (ROOT / "scripts/ci-local.sh").read_text()
+        self.assertIn("python3 ci/check_crs_linter.py", local)
+
+
+if __name__ == "__main__":
+    unittest.main()

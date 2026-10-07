@@ -184,7 +184,10 @@ Include /path/to/plugins/wordpress-hardening-ratelimit.conf
 - Tracks all POST requests to `/wp-login.php` per resolved client IP
 - Locks out an IP after exceeding the attempt threshold
 - Whitelist prevents rate limiting for trusted IPs (loopback + private ranges, IPv4 and IPv6)
-- Blocks return **HTTP 429 Too Many Requests** (RFC 6585 §4) and export `wphard_retry_after` as an env var so the webserver can add a `Retry-After` header to the response
+- Blocks return **HTTP 429 Too Many Requests** (RFC 6585 §4) and export
+  `wphard_retry_after=60` as an env var. The response has a `Retry-After: 60`
+  header only when the webserver header directive below is configured;
+  otherwise the header is absent.
 
 > **⚠️ Engine support:** rate limiting relies on persistent collections
 > (`initcol:ip=...` + `IP:` variables). This works reliably on **Apache +
@@ -247,9 +250,11 @@ Uncomment these in `plugins/wordpress-hardening-config.conf` to override default
 
 ### `Retry-After` response header (optional)
 
-Rule `9522412` calls `setenv:wphard_retry_after=<seconds>` whenever it blocks
-with 429. To expose that as an HTTP response header, add the following to your
-webserver config:
+Rule `9522412` calls `setenv:wphard_retry_after=60` whenever it blocks with
+429. The rule does not add an HTTP response header by itself. Add the following
+directive to your webserver config to expose it; with the Apache directive,
+the throttled response is `Retry-After: 60`. If the directive is not configured,
+the `Retry-After` header is absent.
 
 **nginx / Angie:**
 ```nginx
