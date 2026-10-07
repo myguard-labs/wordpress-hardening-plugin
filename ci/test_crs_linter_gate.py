@@ -8,6 +8,7 @@ import unittest
 from contextlib import redirect_stderr
 from io import StringIO
 from pathlib import Path
+from unittest import mock
 
 import yaml
 
@@ -81,6 +82,27 @@ class CrsLinterGateTests(unittest.TestCase):
 
 
 class CrsLinterWiringTests(unittest.TestCase):
+    def test_informational_filename_is_not_a_finding(self):
+        with mock.patch("ci.check_crs_linter.subprocess.run") as run:
+            run.return_value = subprocess.CompletedProcess(
+                [], 0, "", "INFO:root:Config file: /tmp/Invalid action rule.conf\n"
+            )
+            self.assertEqual(0, check([str(BEFORE)]))
+
+    def test_actual_invalid_action_still_fails(self):
+        with mock.patch("ci.check_crs_linter.subprocess.run") as run:
+            run.return_value = subprocess.CompletedProcess(
+                [], 1, "", "ERROR:root:Invalid action broken\n"
+            )
+            self.assertEqual(1, check([str(BEFORE)]))
+
+    def test_disappearing_matched_rule_fails(self):
+        with mock.patch("ci.check_crs_linter.subprocess.run") as run:
+            run.return_value = subprocess.CompletedProcess(
+                [], 1, "", "ERROR:root:Can't open file: /tmp/rule.conf\n"
+            )
+            self.assertEqual(1, check([str(BEFORE)]))
+
     def test_linter_timeout_fails_with_clear_message(self):
         with tempfile.TemporaryDirectory() as directory:
             executable = Path(directory) / "slow-linter"

@@ -36,7 +36,9 @@ def stage(directory, _mode, peer, mutation=None):
         rules = directory / "wordpress-hardening-ratelimit.conf"
         original = rules.read_text()
         assert original.count("setenv:'wphard_retry_after=60'") == 1
-        rules.write_text(original.replace("setenv:'wphard_retry_after=60',\\\n", ""))
+        modified = original.replace("setenv:'wphard_retry_after=60',\\\n", "")
+        assert modified != original
+        rules.write_text(modified)
 
 
 def configure_apache_retry_after(server):
@@ -87,6 +89,23 @@ def check(_engine, _mode, url, server, _private_peer):
 
     # Exercise exactly the Apache Header directive documented in README.
     configure_apache_retry_after(server)
+
+    # A separate client can exhaust its allowance while Apache finishes the
+    # graceful reload, without changing the counters asserted below.
+    for _ in range(60):
+        if xff.run("docker", "inspect", "-f", "{{.State.Running}}", server) != "true":
+            raise AssertionError(xff.run("docker", "logs", server))
+        try:
+            status, headers = response(
+                LOGIN, "198.51.100.103", b"log=reader&pwd=fixture", "POST"
+            )
+            if status == 429 and headers.get("Retry-After") == "60":
+                break
+        except (urllib.error.URLError, TimeoutError):
+            pass
+        time.sleep(1)
+    else:
+        raise AssertionError("Apache Retry-After directive did not become active")
 
     # Each disposable container has empty persistent collections. Query strings
     # and XFF port/chain spellings must not reset A's counter.

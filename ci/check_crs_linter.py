@@ -74,13 +74,17 @@ def check(rule_files, executable="crs-linter", timeout=LINTER_TIMEOUT_SECONDS):
             return 1
 
     output = result.stdout + result.stderr
+    diagnostics = [
+        (line, line.removeprefix("ERROR:root:")) for line in output.splitlines()
+    ]
     findings = [
-        line for line in output.splitlines()
-        if any(marker in line for marker in SUPPORTED)
+        line for line, message in diagnostics
+        if any(message.startswith(marker) for marker in SUPPORTED)
     ]
     parse_errors = [
-        line for line in output.splitlines()
-        if "Can't parse config file:" in line or "Error running rule " in line
+        line for line, message in diagnostics
+        if message.startswith(("Can't parse config file:", "Can't open file:",
+                               "Error running rule "))
     ]
     if (not output or result.returncode not in (0, 1)
             or "Traceback (most recent call last):" in output):
