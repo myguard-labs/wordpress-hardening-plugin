@@ -12,6 +12,7 @@ from glob import glob
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+LINTER_TIMEOUT_SECONDS = 300
 SUPPORTED = (
     "rule uses TX.N without capture;",
     "ctl:auditLogParts action is deprecated;",
@@ -30,7 +31,7 @@ SUPPORTED = (
 )
 
 
-def check(rule_files, executable="crs-linter"):
+def check(rule_files, executable="crs-linter", timeout=LINTER_TIMEOUT_SECONDS):
     matched_files = []
     unmatched = []
     non_files = []
@@ -61,7 +62,16 @@ def check(rule_files, executable="crs-linter"):
         command = [executable, "-d", str(ROOT), "-t", str(tags)]
         for path in matched_files:
             command.extend(("-r", str(path)))
-        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        try:
+            result = subprocess.run(
+                command, capture_output=True, text=True, check=False, timeout=timeout,
+            )
+        except subprocess.TimeoutExpired:
+            print(
+                f"crs-linter subset: linter timed out after {timeout} seconds",
+                file=sys.stderr,
+            )
+            return 1
 
     output = result.stdout + result.stderr
     findings = [

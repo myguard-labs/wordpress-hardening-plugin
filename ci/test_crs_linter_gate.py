@@ -2,11 +2,16 @@
 
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
 
 import yaml
+
+from ci.check_crs_linter import check
 
 ROOT = Path(__file__).resolve().parents[1]
 GATE = ROOT / "ci/check_crs_linter.py"
@@ -20,8 +25,8 @@ class CrsLinterGateTests(unittest.TestCase):
             rules = Path(directory) / BEFORE.name
             rules.write_text(source)
             return subprocess.run(
-                ["python3", str(GATE), str(rules)],
-                capture_output=True, text=True, check=False,
+                [sys.executable, str(GATE), str(rules)],
+                capture_output=True, text=True, check=False, timeout=60,
             )
 
     def test_plugin_core_findings_excluded(self):
@@ -31,8 +36,8 @@ class CrsLinterGateTests(unittest.TestCase):
 
     def test_matching_rule_glob_passes(self):
         result = subprocess.run(
-            ["python3", str(GATE), str(ROOT / "plugins/wordpress-hardening-before.*")],
-            capture_output=True, text=True, check=False,
+            [sys.executable, str(GATE), str(ROOT / "plugins/wordpress-hardening-before.*")],
+            capture_output=True, text=True, check=False, timeout=60,
         )
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn("crs-linter subset: passed", result.stdout)
@@ -56,14 +61,28 @@ class CrsLinterGateTests(unittest.TestCase):
             rules = Path(directory) / BEFORE.name
             rules.write_bytes(b'\xff')
             result = subprocess.run(
-                ["python3", str(GATE), str(rules)],
-                capture_output=True, text=True, check=False,
+                [sys.executable, str(GATE), str(rules)],
+                capture_output=True, text=True, check=False, timeout=60,
             )
         self.assertNotEqual(0, result.returncode)
         self.assertIn("crs-linter subset: linter failed (exit 1)", result.stderr)
 
 
 class CrsLinterWiringTests(unittest.TestCase):
+    def test_linter_timeout_fails_with_clear_message(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = Path(directory) / "slow-linter"
+            executable.write_text("#!/usr/bin/env python3\nimport time\ntime.sleep(5)\n")
+            executable.chmod(0o755)
+            stderr = StringIO()
+            with redirect_stderr(stderr):
+                result = check([str(BEFORE)], executable=str(executable), timeout=0.01)
+
+        self.assertEqual(1, result)
+        self.assertEqual(
+            "crs-linter subset: linter timed out after 0.01 seconds\n", stderr.getvalue(),
+        )
+
     def test_ci_checkouts_fetch_tags_without_persisting_credentials(self):
         for name, job in (("lint.yml", "validate-files"),
                           ("plugin-lint.yml", "check-syntax")):
@@ -79,8 +98,8 @@ class CrsLinterWiringTests(unittest.TestCase):
     def test_nonexistent_literal_rule_path_fails(self):
         missing = ROOT / "plugins/does-not-exist.conf"
         result = subprocess.run(
-            ["python3", str(GATE), str(missing)],
-            capture_output=True, text=True, check=False,
+            [sys.executable, str(GATE), str(missing)],
+            capture_output=True, text=True, check=False, timeout=60,
         )
         self.assertNotEqual(0, result.returncode)
         self.assertIn(f"no rule files matched: {missing}", result.stderr)
@@ -88,8 +107,8 @@ class CrsLinterWiringTests(unittest.TestCase):
     def test_unmatched_rule_glob_fails(self):
         unmatched = ROOT / "plugins/no-such-rule-*.conf"
         result = subprocess.run(
-            ["python3", str(GATE), str(unmatched)],
-            capture_output=True, text=True, check=False,
+            [sys.executable, str(GATE), str(unmatched)],
+            capture_output=True, text=True, check=False, timeout=60,
         )
         self.assertNotEqual(0, result.returncode)
         self.assertIn(f"no rule files matched: {unmatched}", result.stderr)
@@ -99,8 +118,8 @@ class CrsLinterWiringTests(unittest.TestCase):
             rule_dir = Path(directory) / "rule-directory"
             rule_dir.mkdir()
             result = subprocess.run(
-                ["python3", str(GATE), str(Path(directory) / "*")],
-                capture_output=True, text=True, check=False,
+                [sys.executable, str(GATE), str(Path(directory) / "*")],
+                capture_output=True, text=True, check=False, timeout=60,
             )
         self.assertNotEqual(0, result.returncode)
         self.assertIn(f"matched path is not a rule file: {rule_dir}", result.stderr)
@@ -112,8 +131,8 @@ class CrsLinterWiringTests(unittest.TestCase):
             rule_file = Path(directory) / "rule.conf"
             rule_file.write_text("SecRule ARGS \"@rx foo\" \"id:9522121,phase:1,deny\"\n")
             result = subprocess.run(
-                ["python3", str(GATE), str(Path(directory) / "*")],
-                capture_output=True, text=True, check=False,
+                [sys.executable, str(GATE), str(Path(directory) / "*")],
+                capture_output=True, text=True, check=False, timeout=60,
             )
         self.assertNotEqual(0, result.returncode)
         self.assertIn(f"matched path is not a rule file: {rule_dir}", result.stderr)
