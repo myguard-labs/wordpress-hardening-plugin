@@ -53,6 +53,18 @@ class CrsLinterGateTests(unittest.TestCase):
 
 
 class CrsLinterWiringTests(unittest.TestCase):
+    def test_ci_checkouts_fetch_tags_without_persisting_credentials(self):
+        for name, job in (("lint.yml", "validate-files"),
+                          ("plugin-lint.yml", "check-syntax")):
+            with self.subTest(workflow=name):
+                workflow = yaml.safe_load((ROOT / ".github/workflows" / name).read_text())
+                checkout = next(
+                    step for step in workflow["jobs"][job]["steps"]
+                    if step.get("uses", "").startswith("actions/checkout@")
+                )
+                self.assertEqual(0, checkout["with"]["fetch-depth"])
+                self.assertIs(False, checkout["with"]["persist-credentials"])
+
     def test_nonexistent_literal_rule_path_fails(self):
         missing = ROOT / "plugins/does-not-exist.conf"
         result = subprocess.run(
