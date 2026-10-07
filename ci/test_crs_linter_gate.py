@@ -51,6 +51,17 @@ class CrsLinterGateTests(unittest.TestCase):
         self.assertNotEqual(0, result.returncode)
         self.assertIn("Can't parse config file:", result.stderr)
 
+    def test_malformed_byte_fails_named_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            rules = Path(directory) / BEFORE.name
+            rules.write_bytes(b'\xff')
+            result = subprocess.run(
+                ["python3", str(GATE), str(rules)],
+                capture_output=True, text=True, check=False,
+            )
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("crs-linter subset: linter failed (exit 1)", result.stderr)
+
 
 class CrsLinterWiringTests(unittest.TestCase):
     def test_ci_checkouts_fetch_tags_without_persisting_credentials(self):

@@ -72,7 +72,8 @@ def check(rule_files, executable="crs-linter"):
         line for line in output.splitlines()
         if "Can't parse config file:" in line or "Error running rule " in line
     ]
-    if not output or (result.returncode not in (0, 1)):
+    if (not output or result.returncode not in (0, 1)
+            or "Traceback (most recent call last):" in output):
         print(f"crs-linter subset: linter failed (exit {result.returncode})", file=sys.stderr)
         return 1
     for line in findings + parse_errors:
