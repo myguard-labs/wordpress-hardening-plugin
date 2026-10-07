@@ -102,8 +102,8 @@ func processRequestBody(tx requestBodyProcessor, data string) (*types.Interrupti
 	return it, nil
 }
 
-func runTests(testFile string, confFiles []string) {
-	raw, err := os.ReadFile(testFile)
+func readTests(testFile string) []txTest {
+	raw, err := os.ReadFile(testFile) // #nosec G304 -- the CLI caller explicitly selects this fixture path.
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "read %s: %v\n", testFile, err)
 		os.Exit(2)
@@ -113,100 +113,151 @@ func runTests(testFile string, confFiles []string) {
 		fmt.Fprintf(os.Stderr, "parse %s: %v\n", testFile, err)
 		os.Exit(2)
 	}
+	return tests
+}
 
-	cfg := coraza.NewWAFConfig().
-		WithDirectives("SecRuleEngine On\nSecRequestBodyAccess On")
+func loadRuntimeWAF(confFiles []string) (coraza.WAF, error) {
+	cfg := coraza.NewWAFConfig().WithDirectives("SecRuleEngine On\nSecRequestBodyAccess On")
 	for _, f := range confFiles {
 		cfg = cfg.WithDirectivesFromFile(f)
 	}
-	waf, err := coraza.NewWAF(cfg)
+	return coraza.NewWAF(cfg)
+}
+
+func transactionName(t txTest, index int) string {
+	if t.Name != "" {
+		return t.Name
+	}
+	return fmt.Sprintf("test-%d", index+1)
+}
+
+func applyTransactionDefaults(t *txTest) {
+	if t.Method == "" {
+		t.Method = "GET"
+	}
+	if t.URI == "" {
+		t.URI = "/"
+	}
+	if t.ClientIP == "" {
+		t.ClientIP = "203.0.113.99"
+	}
+}
+
+type txResult struct {
+	name         string
+	fired        []int
+	problems     []string
+	interruption *types.Interruption
+}
+
+func executeTransaction(waf coraza.WAF, test txTest, index int) txResult {
+	result := txResult{name: transactionName(test, index)}
+	applyTransactionDefaults(&test)
+	tx := waf.NewTransaction()
+	tx.ProcessConnection(test.ClientIP, 42424, "127.0.0.1", 80)
+	tx.ProcessURI(test.URI, test.Method, "HTTP/1.1")
+	for key, value := range test.Headers {
+		tx.AddRequestHeader(key, value)
+	}
+	result.interruption = tx.ProcessRequestHeaders()
+	if result.interruption == nil {
+		var err error
+		result.interruption, err = processRequestBody(tx, test.Data)
+		if err != nil {
+			result.problems = append(result.problems, err.Error())
+		}
+	}
+	result.problems = append(result.problems, requestBodyProblems(tx)...)
+	tx.ProcessLogging()
+	result.fired = matchedRuleIDs(tx)
+	_ = tx.Close() // Cleanup errors were ignored before this refactor.
+	result.problems = append(result.problems, expectationProblems(test, result.fired, result.interruption)...)
+	return result
+}
+
+func requestBodyProblems(tx interface{}) []string {
+	bodyTx, ok := tx.(plugintypes.TransactionState)
+	if !ok {
+		return []string{"request body error variables unavailable"}
+	}
+	if bodyTx.Variables().RequestBodyError().Get() == "1" {
+		return []string{"request body processor: " + bodyTx.Variables().RequestBodyErrorMsg().Get()}
+	}
+	return nil
+}
+
+func matchedRuleIDs(tx interface{ MatchedRules() []types.MatchedRule }) []int {
+	fired := map[int]bool{}
+	var ids []int
+	for _, matched := range tx.MatchedRules() {
+		id := matched.Rule().ID()
+		if id != 0 && !fired[id] {
+			fired[id] = true
+			ids = append(ids, id)
+		}
+	}
+	sort.Ints(ids)
+	return ids
+}
+
+func expectationProblems(test txTest, firedIDs []int, interruption *types.Interruption) []string {
+	fired := make(map[int]bool, len(firedIDs))
+	for _, id := range firedIDs {
+		fired[id] = true
+	}
+	var problems []string
+	for _, id := range test.ExpectIDs {
+		if !fired[id] {
+			problems = append(problems, fmt.Sprintf("expected id %d did not fire", id))
+		}
+	}
+	for _, id := range test.NoExpectIDs {
+		if fired[id] {
+			problems = append(problems, fmt.Sprintf("forbidden id %d fired", id))
+		}
+	}
+	if test.ExpectInterruption != nil {
+		problems = append(problems, interruptionProblems(*test.ExpectInterruption, interruption)...)
+	}
+	return problems
+}
+
+func interruptionProblems(expected bool, interruption *types.Interruption) []string {
+	if expected && interruption == nil {
+		return []string{"expected interruption, none happened"}
+	}
+	if !expected && interruption != nil {
+		return []string{fmt.Sprintf("unexpected interruption by rule %d (%s %d)", interruption.RuleID, interruption.Action, interruption.Status)}
+	}
+	return nil
+}
+
+func printTransactionResult(result txResult) bool {
+	if len(result.problems) == 0 {
+		fmt.Printf("PASS %-40s fired=%v\n", result.name, result.fired)
+		return false
+	}
+	fmt.Printf("FAIL %-40s fired=%v\n", result.name, result.fired)
+	for _, problem := range result.problems {
+		fmt.Printf("     - %s\n", problem)
+	}
+	if result.interruption != nil {
+		fmt.Printf("     - interruption: rule %d action=%s status=%d\n", result.interruption.RuleID, result.interruption.Action, result.interruption.Status)
+	}
+	return true
+}
+
+func runTests(testFile string, confFiles []string) {
+	tests := readTests(testFile)
+	waf, err := loadRuntimeWAF(confFiles)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "LOAD-FATAL: %v\n", err)
 		os.Exit(1)
 	}
-
 	failed := 0
-	for i, t := range tests {
-		name := t.Name
-		if name == "" {
-			name = fmt.Sprintf("test-%d", i+1)
-		}
-		if t.Method == "" {
-			t.Method = "GET"
-		}
-		if t.URI == "" {
-			t.URI = "/"
-		}
-		if t.ClientIP == "" {
-			t.ClientIP = "203.0.113.99"
-		}
-
-		tx := waf.NewTransaction()
-		tx.ProcessConnection(t.ClientIP, 42424, "127.0.0.1", 80)
-		tx.ProcessURI(t.URI, t.Method, "HTTP/1.1")
-		for k, v := range t.Headers {
-			tx.AddRequestHeader(k, v)
-		}
-		it := tx.ProcessRequestHeaders()
-		var problems []string
-		if it == nil {
-			var err error
-			it, err = processRequestBody(tx, t.Data)
-			if err != nil {
-				problems = append(problems, err.Error())
-			}
-		}
-		// Coraza reports malformed bodies through variables even when the API returns nil.
-		bodyTx, ok := tx.(plugintypes.TransactionState)
-		if !ok {
-			problems = append(problems, "request body error variables unavailable")
-		} else if bodyTx.Variables().RequestBodyError().Get() == "1" {
-			problems = append(problems, "request body processor: "+bodyTx.Variables().RequestBodyErrorMsg().Get())
-		}
-		tx.ProcessLogging()
-
-		fired := map[int]bool{}
-		var firedList []int
-		for _, mr := range tx.MatchedRules() {
-			id := mr.Rule().ID()
-			if id != 0 && !fired[id] {
-				fired[id] = true
-				firedList = append(firedList, id)
-			}
-		}
-		sort.Ints(firedList)
-		tx.Close()
-
-		for _, id := range t.ExpectIDs {
-			if !fired[id] {
-				problems = append(problems, fmt.Sprintf("expected id %d did not fire", id))
-			}
-		}
-		for _, id := range t.NoExpectIDs {
-			if fired[id] {
-				problems = append(problems, fmt.Sprintf("forbidden id %d fired", id))
-			}
-		}
-		if t.ExpectInterruption != nil {
-			if *t.ExpectInterruption && it == nil {
-				problems = append(problems, "expected interruption, none happened")
-			}
-			if !*t.ExpectInterruption && it != nil {
-				problems = append(problems, fmt.Sprintf("unexpected interruption by rule %d (%s %d)", it.RuleID, it.Action, it.Status))
-			}
-		}
-
-		if len(problems) == 0 {
-			fmt.Printf("PASS %-40s fired=%v\n", name, firedList)
-		} else {
+	for index, test := range tests {
+		if printTransactionResult(executeTransaction(waf, test, index)) {
 			failed++
-			fmt.Printf("FAIL %-40s fired=%v\n", name, firedList)
-			for _, p := range problems {
-				fmt.Printf("     - %s\n", p)
-			}
-			if it != nil {
-				fmt.Printf("     - interruption: rule %d action=%s status=%d\n", it.RuleID, it.Action, it.Status)
-			}
 		}
 	}
 	fmt.Printf("%d/%d passed\n", len(tests)-failed, len(tests))
