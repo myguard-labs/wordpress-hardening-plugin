@@ -120,6 +120,9 @@ jobs:
       - name: Verify encoded load array budget on nginx v3
         run: python3 -m ci.check_load_budget_v3
 
+      - name: Verify phase-one encoded-path blockers on nginx v3
+        run: python3 -m ci.check_encoded_paths_v3
+
       - name: Verify default XFF trust and configured proxies
         run: python3 ci/check_xff_trust.py nginx
 
