@@ -32,12 +32,35 @@ def stage(directory, _mode, peer, mutation=None):
         original = rules.read_text()
         assert original.count("deny,status:429") == 1
         rules.write_text(original.replace("deny,status:429", "pass"))
+    if mutation == "remove-retry-after":
+        rules = directory / "wordpress-hardening-ratelimit.conf"
+        original = rules.read_text()
+        assert original.count("setenv:'wphard_retry_after=60'") == 1
+        rules.write_text(original.replace("setenv:'wphard_retry_after=60',\\\n", ""))
+
+
+def configure_apache_retry_after(server):
+    """Enable the documented optional Apache Header directive in the fixture."""
+    with tempfile.TemporaryDirectory(prefix="wph-apache-header-") as temporary:
+        header_conf = Path(temporary) / "apache-retry-after.conf"
+        header_conf.write_text(
+            'Header always set Retry-After "%{wphard_retry_after}e" '
+            "env=wphard_retry_after\n"
+        )
+        xff.run(
+            "docker", "cp", str(header_conf), f"{server}:/tmp/apache-retry-after.conf"
+        )
+        xff.run(
+            "docker", "exec", server, "sh", "-c",
+            "cat /tmp/apache-retry-after.conf >> /usr/local/apache2/conf/httpd.conf",
+        )
+        xff.run("docker", "exec", server, "apachectl", "-k", "graceful")
 
 
 def check(_engine, _mode, url, server, _private_peer):
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
-    def status(path, client=None, data=None, method=None):
+    def response(path, client=None, data=None, method=None):
         headers = {"User-Agent": "Rate-limit On-mode test"}
         if client is not None:
             headers["X-Forwarded-For"] = client
@@ -46,21 +69,24 @@ def check(_engine, _mode, url, server, _private_peer):
         )
         try:
             with opener.open(request, timeout=3) as response:
-                return response.status
+                return response.status, response.headers
         except urllib.error.HTTPError as error:
-            return error.code
+            return error.code, error.headers
 
     for _ in range(60):
         if xff.run("docker", "inspect", "-f", "{{.State.Running}}", server) != "true":
             raise AssertionError(xff.run("docker", "logs", server))
         try:
-            if status("/") == 200:
+            if response("/")[0] == 200:
                 break
         except (urllib.error.URLError, TimeoutError):
             pass
         time.sleep(1)
     else:
         raise AssertionError(xff.run("docker", "logs", server))
+
+    # Exercise exactly the Apache Header directive documented in README.
+    configure_apache_retry_after(server)
 
     # Each disposable container has empty persistent collections. Query strings
     # and XFF port/chain spellings must not reset A's counter.
@@ -148,14 +174,22 @@ def check(_engine, _mode, url, server, _private_peer):
             429,
         ),
     ):
-        actual = status(path, client, data, method)
+        actual, headers = response(path, client, data, method)
         assert actual == expected, f"{name}: expected HTTP {expected}, got {actual}"
+        retry_after = headers.get("Retry-After")
+        expected_retry_after = "60" if expected == 429 else None
+        assert retry_after == expected_retry_after, (
+            f"{name}: expected Retry-After {expected_retry_after!r}, got {retry_after!r}"
+        )
         print(f"{name}: HTTP {actual}", flush=True)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mutation", choices=("remove-deny", "disable-limiter"))
+    parser.add_argument(
+        "--mutation",
+        choices=("remove-deny", "disable-limiter", "remove-retry-after"),
+    )
     args = parser.parse_args()
     tags = xff.workflow_tags()
     with tempfile.TemporaryDirectory(prefix="wph-ratelimit-mode-") as temporary:

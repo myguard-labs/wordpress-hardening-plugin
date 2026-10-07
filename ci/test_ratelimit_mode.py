@@ -10,8 +10,9 @@ from ci import check_ratelimit_mode as limiter
 
 
 class Response:
-    def __init__(self, status):
+    def __init__(self, status, headers=None):
         self.status = status
+        self.headers = headers or {}
 
     def __enter__(self):
         return self
@@ -29,9 +30,13 @@ class RateLimitModeTests(unittest.TestCase):
             normal = Path(temporary) / "normal"
             mutated = Path(temporary) / "mutated"
             disabled = Path(temporary) / "disabled"
+            missing_retry_after = Path(temporary) / "missing-retry-after"
             limiter.stage(normal, "ratelimit", "198.18.0.1")
             limiter.stage(mutated, "ratelimit", "198.18.0.1", "remove-deny")
             limiter.stage(disabled, "ratelimit", "198.18.0.1", "disable-limiter")
+            limiter.stage(
+                missing_retry_after, "ratelimit", "198.18.0.1", "remove-retry-after"
+            )
             self.assertIn(
                 "deny,status:429",
                 (normal / "wordpress-hardening-ratelimit.conf").read_text(),
@@ -62,13 +67,21 @@ class RateLimitModeTests(unittest.TestCase):
                 "ratelimit_login_enabled=0",
                 (normal / "zzz-ci-ratelimit-config.conf").read_text(),
             )
+            self.assertNotIn(
+                "setenv:'wphard_retry_after=60'",
+                (missing_retry_after / "wordpress-hardening-ratelimit.conf").read_text(),
+            )
 
     def test_http_asserts_request_forms_and_separate_client_counters(self):
-        def run(statuses):
+        def run(statuses, retry_after="60"):
             opener = mock.Mock()
             opener.open.side_effect = [
                 urllib.error.HTTPError(
-                    "http://fixture/wp-login.php", 429, "Too Many Requests", None, None
+                    "http://fixture/wp-login.php",
+                    429,
+                    "Too Many Requests",
+                    {"Retry-After": retry_after} if retry_after else {},
+                    None,
                 )
                 if status == 429
                 else Response(status)
@@ -108,6 +121,16 @@ class RateLimitModeTests(unittest.TestCase):
 
         expected = [200, 200, 200, 200, 200, 429, 429, 200, 200, 429]
         run(expected)
+        with self.assertRaisesRegex(
+            AssertionError,
+            "client-a-chain-at-limit: expected Retry-After '60', got None",
+        ):
+            run(expected, retry_after=None)
+        with self.assertRaisesRegex(
+            AssertionError,
+            "client-a-chain-at-limit: expected Retry-After '60', got '30'",
+        ):
+            run(expected, retry_after="30")
         for index, wrong, message in (
             (1, 429, "client-a-get"),
             (3, 429, "client-a-port-below-limit"),
