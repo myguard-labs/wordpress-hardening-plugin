@@ -77,7 +77,8 @@ class SmuggleDiffProbeTest(unittest.TestCase):
             return self.connection
 
         self.thread.start.side_effect = lambda: self.events.append("listener-start")
-        self.connection.sendall.side_effect = lambda _request: self.events.append("send")
+        if self.connection.sendall.side_effect is None:
+            self.connection.sendall.side_effect = lambda _request: self.events.append("send")
         with tempfile.TemporaryDirectory() as temp:
             audit = Path(temp) / "audit.log"
             with (mock.patch("ci.check_smuggle_diff.socket.socket", return_value=self.origin),
@@ -106,6 +107,26 @@ class SmuggleDiffProbeTest(unittest.TestCase):
         self.assertNotIn("listener-start", self.events)
         self.origin.close.assert_called_once()
         self.thread.join.assert_not_called()
+
+    def test_send_timeout_fails_without_retry(self):
+        self.connection.sendall.side_effect = TimeoutError("send timed out")
+        with self.assertRaisesRegex(TimeoutError, "send timed out"):
+            self.run_probe(lambda: None)
+        self.assertEqual(self.events.count("connect"), 1)
+        self.assertEqual(self.events.count("send"), 0)
+
+    def test_partial_response_timeout_fails_without_retry_or_reuse(self):
+        self.connection.recv.side_effect = [b"HTTP/1.1 200 ", TimeoutError("recv timed out")]
+        with self.assertRaisesRegex(TimeoutError, "recv timed out"):
+            self.run_probe(lambda: None)
+        self.assertEqual(self.events.count("connect"), 1)
+        self.assertEqual(self.events.count("send"), 1)
+
+    def test_connection_setup_timeout_retries_before_sending(self):
+        row = self.run_probe(lambda: None, refused_connections=1)
+        self.assertEqual(self.events.count("connect"), 2)
+        self.assertEqual(self.events.count("send"), 1)
+        self.assertEqual(row["status"], "HTTP/1.1 200 OK")
 
 
 if __name__ == "__main__":

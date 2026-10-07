@@ -77,20 +77,22 @@ def probe(engine, case, request, image, network, gateway, staged, audit):
         response = b""
         for _ in range(30):
             try:
-                with socket.create_connection((address, 8080), timeout=1) as conn:
-                    if not listener_started:
-                        thread.start()
-                        listener_started = True
-                    conn.settimeout(8)
-                    conn.sendall(request)
-                    while len(response) < LIMIT:
-                        chunk = conn.recv(LIMIT - len(response))
-                        if not chunk:
-                            break
-                        response += chunk
-                break
+                conn = socket.create_connection((address, 8080), timeout=1)
             except (ConnectionRefusedError, TimeoutError):
                 time.sleep(1)
+                continue
+            with conn:
+                if not listener_started:
+                    thread.start()
+                    listener_started = True
+                conn.settimeout(8)
+                conn.sendall(request)
+                while len(response) < LIMIT:
+                    chunk = conn.recv(LIMIT - len(response))
+                    if not chunk:
+                        break
+                    response += chunk
+            break
         else:
             raise AssertionError(f"{engine}: WAF did not become ready")
         thread.join(timeout=9)
