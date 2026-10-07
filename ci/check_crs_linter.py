@@ -8,7 +8,7 @@ Keep this list explicit so adding a CRS-core check cannot silently block CI.
 import subprocess
 import sys
 import tempfile
-from glob import glob
+from glob import escape, glob
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -61,7 +61,7 @@ def check(rule_files, executable="crs-linter", timeout=LINTER_TIMEOUT_SECONDS):
         tags.write_text("")
         command = [executable, "-d", str(ROOT), "-t", str(tags)]
         for path in matched_files:
-            command.extend(("-r", str(path)))
+            command.extend(("-r", escape(str(path))))
         try:
             result = subprocess.run(
                 command, capture_output=True, text=True, check=False, timeout=timeout,
